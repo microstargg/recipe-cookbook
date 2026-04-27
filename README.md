@@ -1,4 +1,4 @@
-# Home Cookbook
+# Ben's Cookbook
 
 Personal recipe app: manual recipes, URL import (JSON-LD + fallbacks), AI photo import, export. **Neon** (DB + Auth), **Vercel Blob** (images), **Together.ai** via the **Vercel AI SDK** (`@ai-sdk/togetherai`) for text/vision.
 
@@ -11,7 +11,7 @@ Personal recipe app: manual recipes, URL import (JSON-LD + fallbacks), AI photo 
 | `NEON_AUTH_COOKIE_SECRET` | You generate (32+ chars), e.g. `openssl rand -base64 32`. |
 | **`BLOB_READ_WRITE_TOKEN`** | **Vercel** → your project → **Storage** → **Blob** → create store → copy the **read/write** token. Not from the AI SDK — it only stores uploaded image files. |
 | **`TOGETHER_API_KEY`** | **[together.ai](https://api.together.ai/)** → API keys (free credits / trial). Used by `ai` + `@ai-sdk/togetherai` in code. |
-| `TOGETHER_TEXT_MODEL` | Optional. Default: `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` (URL text cleanup). |
+| `TOGETHER_TEXT_MODEL` | Optional. Default: `meta-llama/Llama-3.3-70B-Instruct-Turbo` (serverless; best for structured recipe extraction). |
 | `TOGETHER_VISION_MODEL` | Optional. Default: `Llama-Vision-Free` (photo → recipe; free tier, stricter rate limits). |
 
 You do **not** need `OPENAI_API_KEY` unless you switch the code back to OpenAI.

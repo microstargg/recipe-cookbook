@@ -91,7 +91,7 @@ export async function saveRecipe(
     await db.insert(recipeImages).values({
       recipeId: created.id,
       url: data.imageUrl,
-      kind: "import_source",
+      kind: "cover",
     });
   }
   revalidatePath("/recipes");

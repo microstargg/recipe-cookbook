@@ -15,8 +15,17 @@ const sans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Home Cookbook",
-  description: "Your personal recipe collection",
+  title: {
+    default: "Ben's Cookbook",
+    template: "%s · Ben's Cookbook",
+  },
+  description: "Ben's personal recipe collection — save, import, and cook.",
+  applicationName: "Ben's Cookbook",
+  openGraph: {
+    title: "Ben's Cookbook",
+    description: "Personal recipe collection — save, import, and cook.",
+    siteName: "Ben's Cookbook",
+  },
 };
 
 export default function RootLayout({

@@ -26,7 +26,8 @@ export default async function RecipesPage() {
             Your recipes
           </h1>
           <p className="mt-1 text-stone-600">
-            Saved in your database — they won’t disappear when a site goes offline.
+            Your saved recipes in Ben&apos;s Cookbook — they won&apos;t disappear when a site goes
+            offline.
           </p>
         </div>
         <Link

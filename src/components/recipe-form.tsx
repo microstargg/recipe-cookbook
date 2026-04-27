@@ -240,8 +240,18 @@ export function RecipeForm(props: {
       </div>
 
       {props.initial?.imageUrl ? (
-        <div>
-          <p className="text-sm text-stone-600">Source image will be stored with this recipe.</p>
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-stone-700">Recipe photo</p>
+          <p className="text-sm text-stone-600">
+            We pulled the main image from the page (or Open Graph). It will be saved as the cover
+            when you submit.
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={props.initial.imageUrl}
+            alt=""
+            className="max-h-56 w-auto max-w-full rounded-md border border-stone-200 object-contain"
+          />
           <input type="hidden" {...register("imageUrl")} />
         </div>
       ) : null}

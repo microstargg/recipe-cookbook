@@ -28,7 +28,7 @@ export function UrlImportForm() {
     return (
       <div>
         <p className="mb-4 text-sm text-stone-600">
-          Review the imported fields, then save to your cookbook.
+          Review the imported fields, then save to Ben&apos;s Cookbook.
         </p>
         <RecipeForm initial={draft} submitLabel="Save imported recipe" />
       </div>

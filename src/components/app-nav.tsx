@@ -9,7 +9,7 @@ export function AppNav() {
           href="/recipes"
           className="font-display text-xl font-semibold tracking-tight text-ink"
         >
-          Home Cookbook
+          Ben&apos;s Cookbook
         </Link>
         <nav className="flex flex-wrap items-center gap-3 text-sm text-ink-muted">
           <Link href="/recipes" className="hover:text-accent">
