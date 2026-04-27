@@ -1,4 +1,7 @@
+import { ensureHeadersGetSetCookie } from "@/lib/edge-headers-getsetcookie";
 import { auth } from "@/lib/auth/server";
+
+ensureHeadersGetSetCookie();
 
 export default auth.middleware({ loginUrl: "/auth/sign-in" });
 
