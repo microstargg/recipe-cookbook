@@ -13,6 +13,7 @@ Personal recipe app: manual recipes, URL import (JSON-LD + fallbacks), AI photo 
 | **`TOGETHER_API_KEY`** | **[together.ai](https://api.together.ai/)** → API keys (free credits / trial). Used by `ai` + `@ai-sdk/togetherai` in code. |
 | `TOGETHER_TEXT_MODEL` | Optional. Default: `meta-llama/Llama-3.3-70B-Instruct-Turbo` (serverless; best for structured recipe extraction). |
 | `TOGETHER_VISION_MODEL` | Optional. Default: `Llama-Vision-Free` (photo → recipe; free tier, stricter rate limits). |
+| `IMPORT_DISABLE_JINA` | Optional. Set to `1` to skip **r.jina.ai** when direct fetch gets 403 (some sites block cloud IPs). If you disable it, those URLs may fail unless they allow your server. When the fallback runs, the recipe URL is retrieved through Jina’s HTML reader. |
 
 You do **not** need `OPENAI_API_KEY` unless you switch the code back to OpenAI.
 
@@ -33,5 +34,6 @@ Set the same env vars in the Vercel project. Enable **Blob** and attach the toke
 ## Notes
 
 - URL import prefers `schema.org/Recipe` in JSON-LD; plain-text fallback can call Together when `TOGETHER_API_KEY` is set.
+- Sites that block server IPs (e.g. **Allrecipes** → HTTP 403) use an optional **read proxy** ([r.jina.ai](https://r.jina.ai)) with HTML return format so imports still work; you’ll see a short note on the draft. Set `IMPORT_DISABLE_JINA=1` if you must not use that path.
 - Photo import uploads to Blob, then runs a vision model; always review before saving.
 - If `Llama-Vision-Free` is slow or rate-limited, set `TOGETHER_VISION_MODEL` to e.g. `meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo` in the dashboard (paid/usage-based).

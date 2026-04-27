@@ -3,6 +3,7 @@ import { getRecipes } from "@/actions/recipes";
 import { recipeImages } from "@/db/schema";
 import { db } from "@/db";
 import { inArray } from "drizzle-orm";
+import { RecipeListClient } from "@/components/recipe-list-client";
 
 export default async function RecipesPage() {
   const list = await getRecipes();
@@ -17,6 +18,18 @@ export default async function RecipesPage() {
       if (!firstImage.has(im.recipeId)) firstImage.set(im.recipeId, im.url);
     }
   }
+
+  const recipeItems = list.map((r) => ({
+    id: r.id,
+    title: r.title,
+    sourceUrl: r.sourceUrl,
+    updatedAtLabel: r.updatedAt.toLocaleDateString(),
+    thumbUrl: firstImage.get(r.id),
+    tags: r.tags ?? [],
+    ingredients: r.ingredients ?? [],
+    steps: r.steps ?? [],
+    notes: r.notes,
+  }));
 
   return (
     <div>
@@ -53,39 +66,7 @@ export default async function RecipesPage() {
           </p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {list.map((r) => {
-            const thumb = firstImage.get(r.id);
-            return (
-              <li key={r.id}>
-                <Link
-                  href={`/recipes/${r.id}`}
-                  className="flex items-center gap-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm transition hover:border-sage/40 hover:shadow"
-                >
-                  {thumb && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumb}
-                      alt=""
-                      className="h-16 w-16 shrink-0 rounded object-cover"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <h2 className="font-medium text-ink">{r.title}</h2>
-                    {r.sourceUrl && (
-                      <p className="mt-0.5 truncate text-xs text-stone-500">
-                        {r.sourceUrl}
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs text-stone-500">
-                      Updated {r.updatedAt.toLocaleDateString()}
-                    </p>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <RecipeListClient recipes={recipeItems} />
       )}
     </div>
   );

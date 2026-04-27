@@ -568,41 +568,138 @@ function finalizeParsed(
 
 const MAX_BYTES = 2_000_000;
 
+const JINA_READER_PREFIX = "https://r.jina.ai/";
+
+function importJinaDisabled(): boolean {
+  const v = process.env.IMPORT_DISABLE_JINA?.toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+function buildImportFetchHeaders(pageUrl: string): Record<string, string> {
+  let refererOrigin = "https://www.google.com";
+  try {
+    refererOrigin = new URL(pageUrl).origin;
+  } catch {
+    /* use default */
+  }
+  return {
+    // Prefer HTML. Omit application/json so WordPress ActivityPub returns the article page.
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    Referer: `${refererOrigin}/`,
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+  };
+}
+
+/**
+ * Some recipe sites (e.g. Allrecipes) return 403 to cloud/server IPs. Optional fallback uses
+ * Jina Reader (`https://r.jina.ai/…`) with `X-Return-Format: html` so we still get HTML for
+ * JSON-LD / Readability. Set IMPORT_DISABLE_JINA=1 to skip the proxy (403 URLs may then fail).
+ */
+async function fetchImportHtml(
+  url: string,
+  signal: AbortSignal,
+): Promise<{ html: string; fetchWarnings: string[] }> {
+  const fetchWarnings: string[] = [];
+  const res = await fetch(url, {
+    signal,
+    headers: buildImportFetchHeaders(url),
+    redirect: "follow",
+  });
+
+  if (res.ok) {
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > MAX_BYTES) {
+      throw new Error("Page is too large to import (max 2MB).");
+    }
+    return {
+      html: new TextDecoder("utf-8").decode(buf),
+      fetchWarnings,
+    };
+  }
+
+  const tryProxy =
+    !importJinaDisabled() &&
+    (res.status === 403 ||
+      res.status === 401 ||
+      res.status === 503 ||
+      res.status === 429);
+
+  if (!tryProxy) {
+    throw new Error(`HTTP ${res.status} when fetching the URL`);
+  }
+
+  const jinaUrl = `${JINA_READER_PREFIX}${url}`;
+  const jina = await fetch(jinaUrl, {
+    signal,
+    headers: {
+      Accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+      "X-Return-Format": "html",
+      "User-Agent": buildImportFetchHeaders(url)["User-Agent"],
+    },
+    redirect: "follow",
+  });
+
+  if (!jina.ok) {
+    throw new Error(
+      `HTTP ${res.status} when fetching the URL (read proxy failed: HTTP ${jina.status})`,
+    );
+  }
+
+  const buf = await jina.arrayBuffer();
+  if (buf.byteLength > MAX_BYTES) {
+    throw new Error("Page is too large to import (max 2MB).");
+  }
+
+  fetchWarnings.push(
+    "Fetched via read proxy because the site blocked direct access from this server. The page URL was retrieved through a third-party HTML reader.",
+  );
+
+  return {
+    html: new TextDecoder("utf-8").decode(buf),
+    fetchWarnings,
+  };
+}
+
+function withFetchWarnings(
+  parsed: ParsedRecipe,
+  fetchWarnings: string[],
+): ParsedRecipe {
+  if (!fetchWarnings.length) return parsed;
+  return {
+    ...parsed,
+    rawWarnings: [...(parsed.rawWarnings ?? []), ...fetchWarnings],
+  };
+}
+
 export async function fetchAndParseUrl(url: string): Promise<{
   parsed: ParsedRecipe;
   htmlSnippet?: string;
 }> {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 20_000);
-  const res = await fetch(url, {
-    signal: controller.signal,
-    headers: {
-      // Prefer HTML. Including application/json makes some sites (e.g. WordPress ActivityPub)
-      // return a JSON Note instead of the recipe page — Readability then sees one giant JSON "line".
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    },
-    redirect: "follow",
-  });
-  clearTimeout(t);
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} when fetching the URL`);
+  const t = setTimeout(() => controller.abort(), 25_000);
+  let html: string;
+  let fetchWarnings: string[];
+  try {
+    const fetched = await fetchImportHtml(url, controller.signal);
+    html = fetched.html;
+    fetchWarnings = fetched.fetchWarnings;
+  } finally {
+    clearTimeout(t);
   }
 
-  const buf = await res.arrayBuffer();
-  if (buf.byteLength > MAX_BYTES) {
-    throw new Error("Page is too large to import (max 2MB).");
-  }
-  const html = new TextDecoder("utf-8").decode(buf);
-  const contentType = res.headers.get("content-type") ?? "";
+  const merge = (p: ParsedRecipe) => withFetchWarnings(p, fetchWarnings);
 
   const couldBeJson =
-    contentType.includes("json") ||
-    contentType.includes("activity") ||
-    html.trimStart().startsWith("{");
+    html.trimStart().startsWith("{") || html.trimStart().startsWith("[");
 
   if (couldBeJson) {
     try {
@@ -614,7 +711,7 @@ export async function fetchAndParseUrl(url: string): Promise<{
           fragment.trim().length > 0
             ? wrapHtmlFragmentForReadability(fragment)
             : html;
-        const parsed = finalizeParsed(ap, syntheticHtml, url);
+        const parsed = merge(finalizeParsed(ap, syntheticHtml, url));
         return { parsed, htmlSnippet: parsed.steps.slice(0, 3).join("\n") };
       }
     } catch {
@@ -627,26 +724,26 @@ export async function fetchAndParseUrl(url: string): Promise<{
   const structured = pickBetterStructured(json, nextData);
 
   if (structured && (structured.ingredients.length || structured.steps.length)) {
-    const parsed = finalizeParsed(structured, html, url);
+    const parsed = merge(finalizeParsed(structured, html, url));
     return { parsed, htmlSnippet: parsed.steps.slice(0, 3).join("\n") };
   }
 
   if (structured && structured.title && structured.rawWarnings?.length) {
-    const parsed = finalizeParsed(structured, html, url);
+    const parsed = merge(finalizeParsed(structured, html, url));
     return { parsed, htmlSnippet: parsed.steps.slice(0, 3).join("\n") };
   }
 
   const fromRead = extractReadability(html, url);
   if (fromRead.source === "readability" && fromRead.steps.length) {
-    const parsed = finalizeParsed(fromRead, html, url);
+    const parsed = merge(finalizeParsed(fromRead, html, url));
     return { parsed, htmlSnippet: parsed.steps.slice(0, 3).join("\n") };
   }
 
   if (structured) {
-    const parsed = finalizeParsed(structured, html, url);
+    const parsed = merge(finalizeParsed(structured, html, url));
     return { parsed, htmlSnippet: parsed.steps.slice(0, 3).join("\n") };
   }
 
-  const parsed = finalizeParsed(fromRead, html, url);
+  const parsed = merge(finalizeParsed(fromRead, html, url));
   return { parsed, htmlSnippet: parsed.steps.slice(0, 3).join("\n") };
 }
