@@ -11,7 +11,7 @@ export default async function EditRecipePage({ params }: Props) {
 
   return (
     <div>
-      <h1 className="font-display text-3xl font-semibold text-ink">
+      <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
         Edit recipe
       </h1>
       <div className="mt-8">

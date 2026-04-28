@@ -33,9 +33,9 @@ export default async function RecipesPage() {
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">
+          <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
             Your recipes
           </h1>
           <p className="mt-1 text-stone-600">
@@ -45,7 +45,7 @@ export default async function RecipesPage() {
         </div>
         <Link
           href="/recipes/new"
-          className="rounded bg-sage px-4 py-2 text-sm font-medium text-white shadow hover:bg-sage/90"
+          className="inline-flex min-h-[48px] w-full items-center justify-center rounded bg-sage px-4 py-3 text-center text-base font-medium text-white shadow hover:bg-sage/90 sm:w-auto sm:py-2 sm:text-sm"
         >
           New recipe
         </Link>

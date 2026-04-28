@@ -12,9 +12,9 @@ export default async function RecipeDetailPage({ params }: Props) {
 
   return (
     <article>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
             {data.title}
           </h1>
           {data.sourceUrl && (
@@ -30,14 +30,16 @@ export default async function RecipeDetailPage({ params }: Props) {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Link
             href={`/recipes/${id}/edit`}
-            className="rounded border border-stone-300 px-3 py-1.5 text-sm"
+            className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded border border-stone-300 px-4 py-2 text-sm sm:flex-none sm:min-h-0 sm:px-3 sm:py-1.5"
           >
             Edit
           </Link>
-          <DeleteRecipeButton id={id} />
+          <div className="sm:flex-none">
+            <DeleteRecipeButton id={id} />
+          </div>
         </div>
       </div>
 

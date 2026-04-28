@@ -48,10 +48,12 @@ export function RecipeListClient({ recipes }: { recipes: RecipeListItem[] }) {
         <input
           id="recipe-search"
           type="search"
+          enterKeyHint="search"
+          inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter by title, ingredient, tag, or notes…"
-          className="w-full max-w-md rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-ink shadow-sm placeholder:text-stone-400 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
+          className="w-full max-w-md rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-base text-ink shadow-sm placeholder:text-stone-400 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30 sm:py-2 sm:text-sm"
           autoComplete="off"
           spellCheck={false}
         />
@@ -76,14 +78,14 @@ export function RecipeListClient({ recipes }: { recipes: RecipeListItem[] }) {
             <li key={r.id}>
               <Link
                 href={`/recipes/${r.id}`}
-                className="flex items-center gap-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm transition hover:border-sage/40 hover:shadow"
+                className="flex min-h-[56px] items-center gap-4 rounded-lg border border-stone-200 bg-white p-3 shadow-sm transition active:scale-[0.99] hover:border-sage/40 hover:shadow sm:min-h-0 sm:p-4"
               >
                 {r.thumbUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={r.thumbUrl}
                     alt=""
-                    className="h-16 w-16 shrink-0 rounded object-cover"
+                    className="h-14 w-14 shrink-0 rounded object-cover sm:h-16 sm:w-16"
                   />
                 )}
                 <div className="min-w-0 flex-1">

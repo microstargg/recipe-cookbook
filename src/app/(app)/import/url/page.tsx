@@ -3,7 +3,7 @@ import { UrlImportForm } from "@/components/url-import-form";
 export default function ImportUrlPage() {
   return (
     <div>
-      <h1 className="font-display text-3xl font-semibold text-ink">
+      <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
         Import from URL
       </h1>
       <p className="mt-1 text-stone-600">

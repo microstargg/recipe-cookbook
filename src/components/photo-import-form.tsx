@@ -74,7 +74,7 @@ export function PhotoImportForm() {
           accept="image/*"
           onChange={onFileChange}
           disabled={phase !== "idle"}
-          className="mt-2 block w-full text-sm text-stone-600"
+          className="mt-2 block w-full min-h-[48px] text-base text-stone-600 file:mr-4 file:rounded-md file:border-0 file:bg-sage file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-white"
         />
       </div>
       {phase === "upload" && (

@@ -11,6 +11,16 @@ body {
   color: var(--foreground);
   background: var(--background);
   min-height: 100vh;
+  min-height: 100dvh;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* iOS: avoid 300ms tap delay on custom controls */
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
 }
 
 @layer utilities {

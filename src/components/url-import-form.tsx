@@ -49,13 +49,13 @@ export function UrlImportForm() {
             type="url"
             required
             placeholder="https://"
-            className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2"
+            className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
           />
         </div>
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-sage px-4 py-2 text-white hover:bg-sage/90 disabled:opacity-50"
+          className="min-h-[48px] w-full rounded bg-sage px-4 py-3 text-base font-medium text-white hover:bg-sage/90 disabled:opacity-50 sm:w-auto sm:py-2 sm:text-sm"
         >
           {pending ? "Fetching…" : "Import"}
         </button>

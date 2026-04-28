@@ -120,7 +120,7 @@ export function RecipeForm(props: {
           Title
         </label>
         <input
-          className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm"
+          className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base text-stone-900 shadow-sm sm:py-2 sm:text-sm"
           {...register("title")}
         />
         {errors.title && (
@@ -129,29 +129,29 @@ export function RecipeForm(props: {
       </div>
 
       <div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <label className="text-sm font-medium text-stone-700">
             Ingredients
           </label>
           <button
             type="button"
             onClick={() => ing.append({ value: "" })}
-            className="text-sm text-accent"
+            className="min-h-[44px] text-sm text-accent sm:min-h-0"
           >
             + Add line
           </button>
         </div>
         <ul className="mt-2 flex flex-col gap-2">
           {ing.fields.map((field, index) => (
-            <li key={field.id} className="flex gap-2">
+            <li key={field.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
-                className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+                className="w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
                 {...register(`ingredients.${index}.value` as const)}
               />
               <button
                 type="button"
                 onClick={() => ing.remove(index)}
-                className="shrink-0 text-sm text-stone-400 hover:text-stone-700"
+                className="min-h-[44px] shrink-0 self-start text-sm text-stone-400 hover:text-stone-700 sm:min-h-0"
                 aria-label="Remove ingredient"
               >
                 Remove
@@ -167,34 +167,39 @@ export function RecipeForm(props: {
       </div>
 
       <div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <label className="text-sm font-medium text-stone-700">Steps</label>
           <button
             type="button"
             onClick={() => stepFields.append({ value: "" })}
-            className="text-sm text-accent"
+            className="min-h-[44px] text-sm text-accent sm:min-h-0"
           >
             + Add step
           </button>
         </div>
-        <ol className="mt-2 flex flex-col gap-2">
+        <ol className="mt-2 flex flex-col gap-3">
           {stepFields.fields.map((field, index) => (
-            <li key={field.id} className="flex gap-2">
-              <span className="mt-2 w-6 shrink-0 text-stone-400">
+            <li key={field.id} className="flex flex-col gap-2 sm:flex-row sm:items-start">
+              <span className="hidden w-6 shrink-0 pt-2.5 text-stone-400 sm:block sm:pt-2">
                 {index + 1}.
               </span>
-              <textarea
-                rows={2}
-                className="w-full rounded border border-stone-300 bg-white px-3 py-2"
-                {...register(`steps.${index}.value` as const)}
-              />
-              <button
-                type="button"
-                onClick={() => stepFields.remove(index)}
-                className="shrink-0 self-start text-sm text-stone-400 hover:text-stone-700"
-              >
-                Remove
-              </button>
+              <div className="flex w-full flex-1 flex-col gap-2 sm:flex-row sm:items-start">
+                <span className="text-sm font-medium text-stone-500 sm:hidden">
+                  Step {index + 1}
+                </span>
+                <textarea
+                  rows={3}
+                  className="min-h-[5.5rem] w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:min-h-0 sm:py-2 sm:text-sm"
+                  {...register(`steps.${index}.value` as const)}
+                />
+                <button
+                  type="button"
+                  onClick={() => stepFields.remove(index)}
+                  className="min-h-[44px] shrink-0 self-start text-sm text-stone-400 hover:text-stone-700 sm:min-h-0"
+                >
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ol>
@@ -210,7 +215,7 @@ export function RecipeForm(props: {
           Tags (comma-separated)
         </label>
         <input
-          className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2"
+          className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
           placeholder="dinner, vegetarian"
           {...register("tagsRaw")}
         />
@@ -233,8 +238,8 @@ export function RecipeForm(props: {
       <div>
         <label className="block text-sm font-medium text-stone-700">Notes</label>
         <textarea
-          rows={3}
-          className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2"
+          rows={4}
+          className="mt-1 min-h-[6rem] w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:min-h-0 sm:py-2 sm:text-sm"
           {...register("notes")}
         />
       </div>
@@ -256,18 +261,18 @@ export function RecipeForm(props: {
         </div>
       ) : null}
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-sage px-4 py-2 text-white shadow hover:bg-sage/90 disabled:opacity-50"
+          className="min-h-[48px] rounded bg-sage px-4 py-3 text-base font-medium text-white shadow hover:bg-sage/90 disabled:opacity-50 sm:min-h-0 sm:py-2 sm:text-sm"
         >
           {pending ? "Saving…" : props.submitLabel ?? "Save recipe"}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded border border-stone-300 px-4 py-2 text-stone-700"
+          className="min-h-[48px] rounded border border-stone-300 px-4 py-3 text-base text-stone-700 sm:min-h-0 sm:py-2 sm:text-sm"
         >
           Cancel
         </button>
