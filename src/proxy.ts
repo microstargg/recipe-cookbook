@@ -15,7 +15,9 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|auth).*)",
+      // Do not exclude all of `/auth`: Neon Auth must run here for OAuth verifier exchange on
+      // paths like `/auth/callback?…`. Skip lists inside `auth.middleware()` already allow sign-in and friends.
+      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
       // Server Actions send `next-action`; auth redirects break the action response
       // (HTML/302 instead of `text/x-component`).
       missing: [{ type: "header", key: "next-action" }],

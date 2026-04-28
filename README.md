@@ -34,6 +34,7 @@ Set the same env vars in the Vercel project. Enable **Blob** and attach the toke
 ## Notes
 
 - If Vercel shows **`MIDDLEWARE_INVOCATION_FAILED`** / proxy errors with Neon Auth, confirm **`NEON_AUTH_BASE_URL`** and **`NEON_AUTH_COOKIE_SECRET`** (≥32 chars) are set for **Production** (and Preview). This app uses **`src/proxy.ts`** (Next.js 16 **Node** runtime), not Edge `middleware.ts`, because Neon’s session proxy needs full `fetch` / `Set-Cookie` handling.
+- A generic **500 / Internal Server Error** on normal page loads almost always means **`NEON_AUTH_COOKIE_SECRET` is missing or shorter than 32 characters** in the Vercel environment (the proxy imports auth config on first hit). Check **Functions** logs for the thrown message.
 - URL import prefers `schema.org/Recipe` in JSON-LD; plain-text fallback can call Together when `TOGETHER_API_KEY` is set.
 - Sites that block server IPs (e.g. **Allrecipes** → HTTP 403) use an optional **read proxy** ([r.jina.ai](https://r.jina.ai)) with HTML return format so imports still work; you’ll see a short note on the draft. Set `IMPORT_DISABLE_JINA=1` if you must not use that path.
 - Photo import uploads to Blob, then runs a vision model; always review before saving.
