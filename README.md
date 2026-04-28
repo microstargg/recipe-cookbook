@@ -33,6 +33,7 @@ Set the same env vars in the Vercel project. Enable **Blob** and attach the toke
 
 ## Notes
 
+- **`Invalid origin`** on sign-in: in Neon **Auth → Configuration → Domains**, add the **exact** URL users open in the browser (`https://…vercel.app` **and** any custom domain, **www** vs apex are different). Use Auth settings for the **same branch** as your `NEON_AUTH_BASE_URL`. In DevTools → Network, inspect the failing `/api/auth/…` request: the **`Origin`** (or **`Referer`** host) must be allowlisted. Preview URLs need their own domain entries unless you use the Neon–Vercel integration that adds them automatically.
 - If Vercel shows **`MIDDLEWARE_INVOCATION_FAILED`** / proxy errors with Neon Auth, confirm **`NEON_AUTH_BASE_URL`** and **`NEON_AUTH_COOKIE_SECRET`** (≥32 chars) are set for **Production** (and Preview). This app uses **`src/proxy.ts`** (Next.js 16 **Node** runtime), not Edge `middleware.ts`, because Neon’s session proxy needs full `fetch` / `Set-Cookie` handling.
 - A generic **500 / Internal Server Error** on normal page loads almost always means **`NEON_AUTH_COOKIE_SECRET` is missing or shorter than 32 characters** in the Vercel environment (the proxy imports auth config on first hit). Check **Functions** logs for the thrown message.
 - URL import prefers `schema.org/Recipe` in JSON-LD; plain-text fallback can call Together when `TOGETHER_API_KEY` is set.
