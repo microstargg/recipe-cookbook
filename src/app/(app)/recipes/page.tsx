@@ -4,6 +4,7 @@ import { recipeImages } from "@/db/schema";
 import { db } from "@/db";
 import { inArray } from "drizzle-orm";
 import { RecipeListClient } from "@/components/recipe-list-client";
+import { toAppMediaUrl } from "@/lib/blob-storage";
 
 export default async function RecipesPage() {
   const list = await getRecipes();
@@ -19,17 +20,20 @@ export default async function RecipesPage() {
     }
   }
 
-  const recipeItems = list.map((r) => ({
-    id: r.id,
-    title: r.title,
-    sourceUrl: r.sourceUrl,
-    updatedAtLabel: r.updatedAt.toLocaleDateString(),
-    thumbUrl: firstImage.get(r.id),
-    tags: r.tags ?? [],
-    ingredients: r.ingredients ?? [],
-    steps: r.steps ?? [],
-    notes: r.notes,
-  }));
+  const recipeItems = list.map((r) => {
+    const rawThumb = firstImage.get(r.id);
+    return {
+      id: r.id,
+      title: r.title,
+      sourceUrl: r.sourceUrl,
+      updatedAtLabel: r.updatedAt.toLocaleDateString(),
+      thumbUrl: rawThumb ? toAppMediaUrl(rawThumb) : undefined,
+      tags: r.tags ?? [],
+      ingredients: r.ingredients ?? [],
+      steps: r.steps ?? [],
+      notes: r.notes,
+    };
+  });
 
   return (
     <div>

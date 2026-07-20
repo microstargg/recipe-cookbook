@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { hasBlobToken, putPrivateBlob } from "@/lib/blob-storage";
 
 /**
  * If `BLOB_READ_WRITE_TOKEN` is set, download the image and store on Vercel Blob
@@ -8,7 +8,7 @@ export async function rehostRecipeImageIfConfigured(
   sourceUrl: string,
   filenameBase: string,
 ): Promise<string> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return sourceUrl;
+  if (!hasBlobToken()) return sourceUrl;
 
   try {
     const controller = new AbortController();
@@ -38,8 +38,8 @@ export async function rehostRecipeImageIfConfigured(
 
     const safe = filenameBase.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 48) || "recipe";
 
-    const blob = await put(`url-import/${safe}-${Date.now()}.${ext}`, buf, {
-      access: "public",
+    const blob = await putPrivateBlob(`url-import/${safe}-${Date.now()}.${ext}`, buf, {
+      contentType: ct,
       addRandomSuffix: true,
     });
     return blob.url;

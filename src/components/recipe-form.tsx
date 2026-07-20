@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { z } from "zod";
 import type { RecipeDraft } from "@/lib/recipe-schema";
+import { toAppMediaUrl } from "@/lib/blob-storage";
 import { saveRecipe } from "@/actions/recipes";
 
 const formSchema = z
@@ -253,7 +254,7 @@ export function RecipeForm(props: {
           </p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={props.initial.imageUrl}
+            src={toAppMediaUrl(props.initial.imageUrl)}
             alt=""
             className="max-h-56 w-auto max-w-full rounded-md border border-stone-200 object-contain"
           />

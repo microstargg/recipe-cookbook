@@ -1,5 +1,6 @@
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { generateText } from "ai";
+import { getPrivateBlobBytes, isVercelBlobUrl } from "@/lib/blob-storage";
 import { recipeDraftSchema, type RecipeDraft } from "@/lib/recipe-schema";
 
 /**
@@ -199,6 +200,11 @@ export async function structureRecipeFromImageUrl(
     throw new Error("TOGETHER_API_KEY is not configured");
   }
 
+  // Private Blob URLs are not fetchable by the vision provider — pass bytes instead.
+  const image = isVercelBlobUrl(imageUrl)
+    ? (await getPrivateBlobBytes(imageUrl)).bytes
+    : new URL(imageUrl);
+
   const { text } = await generateText({
     model: together(visionModelId),
     temperature: 0.2,
@@ -213,7 +219,7 @@ export async function structureRecipeFromImageUrl(
 ${jsonOnlyRecipeInstructions}
 If handwritten or unclear, make reasonable guesses; keep lines short.`,
           },
-          { type: "image", image: new URL(imageUrl) },
+          { type: "image", image },
         ],
       },
     ],

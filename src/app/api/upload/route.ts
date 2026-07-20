@@ -1,5 +1,5 @@
-import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth/server";
+import { hasBlobToken, putPrivateBlob } from "@/lib/blob-storage";
 
 export const runtime = "nodejs";
 
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    if (!hasBlobToken()) {
       return Response.json(
         {
           error:
@@ -61,11 +61,9 @@ export async function POST(request: Request) {
 
     // Buffer is more reliable than passing the FormData Blob into @vercel/blob.
     const buf = Buffer.from(await file.arrayBuffer());
-    const blob = await put(`photo-import/${safeName}`, buf, {
-      access: "public",
-      addRandomSuffix: true,
+    const blob = await putPrivateBlob(`photo-import/${safeName}`, buf, {
       contentType,
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true,
     });
 
     return Response.json({ url: blob.url });

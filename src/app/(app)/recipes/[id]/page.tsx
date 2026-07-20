@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/actions/recipes";
 import { DeleteRecipeButton } from "@/components/delete-recipe-button";
+import { toAppMediaUrl } from "@/lib/blob-storage";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -49,7 +50,7 @@ export default async function RecipeDetailPage({ params }: Props) {
             <li key={im.id}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={im.url}
+                src={toAppMediaUrl(im.url)}
                 alt=""
                 className="max-h-64 max-w-full rounded border border-stone-200"
               />

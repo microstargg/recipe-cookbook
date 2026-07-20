@@ -19,7 +19,7 @@
     "@mozilla/readability": "^0.5.0",
     "@neondatabase/auth": "^0.2.0-beta.1",
     "@neondatabase/serverless": "^0.10.4",
-    "@vercel/blob": "^0.27.0",
+    "@vercel/blob": "^2.6.1",
     "ai": "^5.0.179",
     "drizzle-orm": "^0.41.0",
     "jsdom": "^25.0.0",
