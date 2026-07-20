@@ -38,7 +38,11 @@ export function PhotoImportForm() {
       const { url } = (await res.json()) as { url: string };
       setBlobUrl(url);
       setPhase("parse");
-      const d = await parseRecipeFromImageUrl(url);
+      const result = await parseRecipeFromImageUrl(url);
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+      const d = result.draft;
       setDraft({
         title: d.title,
         ingredients: d.ingredients,

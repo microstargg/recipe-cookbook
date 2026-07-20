@@ -4,7 +4,7 @@ import { recipeImages } from "@/db/schema";
 import { db } from "@/db";
 import { inArray } from "drizzle-orm";
 import { RecipeListClient } from "@/components/recipe-list-client";
-import { toAppMediaUrl } from "@/lib/blob-storage";
+import { toAppMediaUrl } from "@/lib/blob-url";
 
 export default async function RecipesPage() {
   const list = await getRecipes();

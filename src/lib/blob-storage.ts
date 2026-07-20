@@ -1,24 +1,12 @@
 import { get, put, type PutBlobResult } from "@vercel/blob";
 
+export { isVercelBlobUrl, toAppMediaUrl } from "@/lib/blob-url";
+
 /** Matches the store access mode in the Vercel dashboard. */
 export const BLOB_ACCESS = "private" as const;
 
 export function hasBlobToken(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-}
-
-export function isVercelBlobUrl(url: string): boolean {
-  try {
-    return new URL(url).hostname.endsWith(".blob.vercel-storage.com");
-  } catch {
-    return false;
-  }
-}
-
-/** Browser-safe URL: private blobs are served through our authenticated proxy. */
-export function toAppMediaUrl(url: string): string {
-  if (!isVercelBlobUrl(url)) return url;
-  return `/api/media?url=${encodeURIComponent(url)}`;
 }
 
 export async function putPrivateBlob(

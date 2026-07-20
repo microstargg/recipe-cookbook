@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/actions/recipes";
 import { DeleteRecipeButton } from "@/components/delete-recipe-button";
-import { toAppMediaUrl } from "@/lib/blob-storage";
+import { toAppMediaUrl } from "@/lib/blob-url";
 
 type Props = { params: Promise<{ id: string }> };
 

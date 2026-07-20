@@ -5,7 +5,7 @@ import { recipeDraftSchema, type RecipeDraft } from "@/lib/recipe-schema";
 
 /**
  * Uses Together.ai through the Vercel AI SDK (`@ai-sdk/togetherai`).
- * Get a key: https://api.together.ai/ — free credits / Llama-Vision-Free tier.
+ * Get a key: https://api.together.ai/
  *
  * BLOB_READ_WRITE_TOKEN is unrelated: that comes from Vercel Blob (image upload storage).
  */
@@ -25,9 +25,10 @@ const textModelId =
   process.env.TOGETHER_TEXT_MODEL ??
   "meta-llama/Llama-3.3-70B-Instruct-Turbo";
 
-/** Vision: defaults to Together’s free vision endpoint (override with TOGETHER_VISION_MODEL). */
+/** Vision: override with TOGETHER_VISION_MODEL if needed. */
 const visionModelId =
-  process.env.TOGETHER_VISION_MODEL ?? "Llama-Vision-Free";
+  process.env.TOGETHER_VISION_MODEL ??
+  "meta-llama/Llama-4-Scout-17B-16E-Instruct";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

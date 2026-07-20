@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { z } from "zod";
 import type { RecipeDraft } from "@/lib/recipe-schema";
-import { toAppMediaUrl } from "@/lib/blob-storage";
+import { toAppMediaUrl } from "@/lib/blob-url";
 import { saveRecipe } from "@/actions/recipes";
 
 const formSchema = z

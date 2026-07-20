@@ -1,6 +1,7 @@
 import { get } from "@vercel/blob";
 import { auth } from "@/lib/auth/server";
-import { BLOB_ACCESS, isVercelBlobUrl } from "@/lib/blob-storage";
+import { BLOB_ACCESS } from "@/lib/blob-storage";
+import { isVercelBlobUrl } from "@/lib/blob-url";
 
 export const runtime = "nodejs";
 
