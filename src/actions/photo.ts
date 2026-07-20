@@ -11,11 +11,16 @@ function friendlyVisionError(err: unknown): string {
   }
   if (
     message.includes("API key not valid") ||
-    message.includes("API_KEY_INVALID") ||
-    message.includes("401") ||
-    message.includes("403")
+    message.includes("API_KEY_INVALID")
   ) {
     return "Google AI API key is missing or invalid. Add GOOGLE_GENERATIVE_AI_API_KEY in Vercel (free key: https://aistudio.google.com/apikey).";
+  }
+  if (
+    message.includes("no longer available") ||
+    message.includes("NOT_FOUND") ||
+    message.includes("is not found")
+  ) {
+    return "The Gemini model is unavailable. Update GEMINI_VISION_MODEL (current default: gemini-3.5-flash).";
   }
   if (message.includes("Could not extract")) {
     return message;
@@ -23,8 +28,14 @@ function friendlyVisionError(err: unknown): string {
   if (message.includes("Could not read uploaded image")) {
     return message;
   }
+  // Prefer the real provider message over a vague "clearer shot" hint.
+  const cleaned = message.replace(/^Error:\s*/i, "").trim();
+  if (cleaned && cleaned.length < 280 && !cleaned.includes("at ignore-listed")) {
+    console.error("[parseRecipeFromImageUrl]", err);
+    return cleaned;
+  }
   console.error("[parseRecipeFromImageUrl]", err);
-  return "Could not read a recipe from this photo. Try a clearer shot of the recipe text.";
+  return "Could not read a recipe from this photo. Try again in a moment.";
 }
 
 export async function parseRecipeFromImageUrl(

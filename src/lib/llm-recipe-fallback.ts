@@ -15,11 +15,11 @@ const google = createGoogleGenerativeAI({
 
 /** Text structuring (URL import fallback). Override with GEMINI_TEXT_MODEL. */
 const textModelId =
-  process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash";
+  process.env.GEMINI_TEXT_MODEL ?? "gemini-3.5-flash";
 
 /** Vision / photo import. Override with GEMINI_VISION_MODEL. */
 const visionModelId =
-  process.env.GEMINI_VISION_MODEL ?? "gemini-2.5-flash";
+  process.env.GEMINI_VISION_MODEL ?? "gemini-3.5-flash";
 
 export function hasLlmApiKey(): boolean {
   return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
