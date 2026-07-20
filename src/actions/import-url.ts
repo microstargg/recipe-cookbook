@@ -39,7 +39,7 @@ function combinedPageText(parsed: ParsedRecipe): string {
 }
 
 function needsArticleAiStructure(parsed: ParsedRecipe): boolean {
-  if (!process.env.TOGETHER_API_KEY) return false;
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return false;
   if (parsed.source === "next-data") return false;
   if (combinedPageText(parsed).length < 25) return false;
 
@@ -90,7 +90,7 @@ export async function importRecipeFromUrl(url: string) {
   if (
     !parsed.steps.length &&
     parsed.ingredients.length &&
-    process.env.TOGETHER_API_KEY
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY
   ) {
     const body = [
       parsed.title,

@@ -1,34 +1,29 @@
-import { createTogetherAI } from "@ai-sdk/togetherai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { getPrivateBlobBytes, isVercelBlobUrl } from "@/lib/blob-storage";
 import { recipeDraftSchema, type RecipeDraft } from "@/lib/recipe-schema";
 
 /**
- * Uses Together.ai through the Vercel AI SDK (`@ai-sdk/togetherai`).
- * Get a key: https://api.together.ai/
+ * Google Gemini via the Vercel AI SDK (`@ai-sdk/google`).
+ * Free API key: https://aistudio.google.com/apikey
  *
- * BLOB_READ_WRITE_TOKEN is unrelated: that comes from Vercel Blob (image upload storage).
+ * BLOB_READ_WRITE_TOKEN is unrelated — that is only for Vercel Blob image storage.
  */
-const together = createTogetherAI({
-  apiKey: process.env.TOGETHER_API_KEY ?? "",
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "",
 });
 
-/**
- * Text / vision extraction uses plain text + JSON parsing. `generateObject` validates with the
- * provider JSON schema pipeline and often fails on real model output (nulls, nested ingredient
- * objects, alternate keys, prose) with "response did not match schema".
- *
- * Cheaper serverless option: `meta-llama/Meta-Llama-3-8B-Instruct-Lite` via `TOGETHER_TEXT_MODEL`.
- * @see https://docs.together.ai/docs/serverless-models
- */
+/** Text structuring (URL import fallback). Override with GEMINI_TEXT_MODEL. */
 const textModelId =
-  process.env.TOGETHER_TEXT_MODEL ??
-  "meta-llama/Llama-3.3-70B-Instruct-Turbo";
+  process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash";
 
-/** Vision: override with TOGETHER_VISION_MODEL if needed. */
+/** Vision / photo import. Override with GEMINI_VISION_MODEL. */
 const visionModelId =
-  process.env.TOGETHER_VISION_MODEL ??
-  "meta-llama/Llama-4-Scout-17B-16E-Instruct";
+  process.env.GEMINI_VISION_MODEL ?? "gemini-2.5-flash";
+
+export function hasLlmApiKey(): boolean {
+  return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -161,7 +156,7 @@ If a field would be empty, use [] for arrays. Do not use null for arrays.`;
 
 async function extractRecipeWithTextPrompt(prompt: string): Promise<RecipeDraft | null> {
   const { text } = await generateText({
-    model: together(textModelId),
+    model: google(textModelId),
     prompt,
     temperature: 0.2,
     maxOutputTokens: 4096,
@@ -174,7 +169,7 @@ export async function structureRecipeFromPlainText(
   bodyText: string,
   options?: { context?: "plain" | "article-scrape" },
 ): Promise<RecipeDraft | null> {
-  if (!process.env.TOGETHER_API_KEY) return null;
+  if (!hasLlmApiKey()) return null;
   if (bodyText.length < 20) return null;
 
   const articleHints =
@@ -197,8 +192,10 @@ ${bodyText.slice(0, 12_000)}`;
 export async function structureRecipeFromImageUrl(
   imageUrl: string,
 ): Promise<RecipeDraft> {
-  if (!process.env.TOGETHER_API_KEY) {
-    throw new Error("TOGETHER_API_KEY is not configured");
+  if (!hasLlmApiKey()) {
+    throw new Error(
+      "GOOGLE_GENERATIVE_AI_API_KEY is not configured (get a free key at https://aistudio.google.com/apikey).",
+    );
   }
 
   // Private Blob URLs are not fetchable by the vision provider — pass bytes instead.
@@ -207,7 +204,7 @@ export async function structureRecipeFromImageUrl(
     : new URL(imageUrl);
 
   const { text } = await generateText({
-    model: together(visionModelId),
+    model: google(visionModelId),
     temperature: 0.2,
     maxOutputTokens: 4096,
     messages: [

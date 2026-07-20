@@ -6,14 +6,16 @@ import type { RecipeDraft } from "@/lib/recipe-schema";
 
 function friendlyVisionError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
-  if (
-    message.includes("model_not_available") ||
-    message.includes("Unable to access model")
-  ) {
-    return "The vision model is unavailable on Together.ai. Set TOGETHER_VISION_MODEL to a supported vision model, or check your Together account access.";
-  }
-  if (message.includes("TOGETHER_API_KEY")) {
+  if (message.includes("GOOGLE_GENERATIVE_AI_API_KEY")) {
     return message;
+  }
+  if (
+    message.includes("API key not valid") ||
+    message.includes("API_KEY_INVALID") ||
+    message.includes("401") ||
+    message.includes("403")
+  ) {
+    return "Google AI API key is missing or invalid. Add GOOGLE_GENERATIVE_AI_API_KEY in Vercel (free key: https://aistudio.google.com/apikey).";
   }
   if (message.includes("Could not extract")) {
     return message;
