@@ -11,8 +11,8 @@ Personal recipe app: manual recipes, URL import (JSON-LD + fallbacks), AI photo 
 | `NEON_AUTH_COOKIE_SECRET` | You generate (32+ chars), e.g. `openssl rand -base64 32`. |
 | **`BLOB_READ_WRITE_TOKEN`** | **Vercel** → your project → **Storage** → **Blob** → create store → copy the **read/write** token. Not from the AI SDK — it only stores uploaded image files. |
 | **`GOOGLE_GENERATIVE_AI_API_KEY`** | **[Google AI Studio](https://aistudio.google.com/apikey)** (free). Used by `ai` + `@ai-sdk/google` for photo import and URL text fallback. |
-| `GEMINI_TEXT_MODEL` | Optional. Default: `gemini-3.5-flash`. |
-| `GEMINI_VISION_MODEL` | Optional. Default: `gemini-3.5-flash`. |
+| `GEMINI_TEXT_MODEL` | Optional. Default starts with `gemini-3.1-flash-lite`, then falls back if busy. |
+| `GEMINI_VISION_MODEL` | Optional. Same fallback chain as text. |
 | `IMPORT_DISABLE_JINA` | Optional. Set to `1` to skip **r.jina.ai** when direct fetch gets 403 (some sites block cloud IPs). If you disable it, those URLs may fail unless they allow your server. When the fallback runs, the recipe URL is retrieved through Jina’s HTML reader. |
 
 You do **not** need Together.ai or OpenAI keys for the default setup.

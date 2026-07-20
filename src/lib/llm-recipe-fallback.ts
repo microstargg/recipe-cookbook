@@ -13,16 +13,70 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "",
 });
 
-/** Text structuring (URL import fallback). Override with GEMINI_TEXT_MODEL. */
-const textModelId =
-  process.env.GEMINI_TEXT_MODEL ?? "gemini-3.5-flash";
+/**
+ * Prefer lighter free-tier models first (less “high demand”), then fall back.
+ * Override primary with GEMINI_TEXT_MODEL / GEMINI_VISION_MODEL.
+ */
+const DEFAULT_MODEL_CANDIDATES = [
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash-lite",
+  "gemini-3-flash-preview",
+  "gemini-3.5-flash",
+] as const;
 
-/** Vision / photo import. Override with GEMINI_VISION_MODEL. */
-const visionModelId =
-  process.env.GEMINI_VISION_MODEL ?? "gemini-3.5-flash";
+function modelCandidates(preferred?: string): string[] {
+  const primary = preferred?.trim();
+  const list = primary
+    ? [primary, ...DEFAULT_MODEL_CANDIDATES.filter((m) => m !== primary)]
+    : [...DEFAULT_MODEL_CANDIDATES];
+  return [...new Set(list)];
+}
+
+const textModelPreferred = process.env.GEMINI_TEXT_MODEL;
+const visionModelPreferred = process.env.GEMINI_VISION_MODEL;
 
 export function hasLlmApiKey(): boolean {
   return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+}
+
+function isRetryableCapacityError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("high demand") ||
+    lower.includes("try again later") ||
+    lower.includes("resource_exhausted") ||
+    lower.includes("rate limit") ||
+    lower.includes("quota") ||
+    lower.includes("unavailable") ||
+    lower.includes("overloaded") ||
+    lower.includes("no longer available") ||
+    lower.includes("not found") ||
+    lower.includes("404")
+  );
+}
+
+async function generateTextWithModelFallback(
+  buildArgs: (modelId: string) => Parameters<typeof generateText>[0],
+  preferred?: string,
+): Promise<string> {
+  const candidates = modelCandidates(preferred);
+  let lastError: unknown;
+  for (const modelId of candidates) {
+    try {
+      const { text } = await generateText(buildArgs(modelId));
+      return text;
+    } catch (err) {
+      lastError = err;
+      if (!isRetryableCapacityError(err)) throw err;
+      console.warn(
+        `[llm] ${modelId} failed (${err instanceof Error ? err.message : err}); trying next model…`,
+      );
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("All Gemini models failed");
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -155,12 +209,15 @@ Rules:
 If a field would be empty, use [] for arrays. Do not use null for arrays.`;
 
 async function extractRecipeWithTextPrompt(prompt: string): Promise<RecipeDraft | null> {
-  const { text } = await generateText({
-    model: google(textModelId),
-    prompt,
-    temperature: 0.2,
-    maxOutputTokens: 4096,
-  });
+  const text = await generateTextWithModelFallback(
+    (modelId) => ({
+      model: google(modelId),
+      prompt,
+      temperature: 0.2,
+      maxOutputTokens: 4096,
+    }),
+    textModelPreferred,
+  );
   const json = extractJsonObjectFromModelText(text);
   return json != null ? recipeDraftFromUnknownJson(json) : null;
 }
@@ -203,25 +260,28 @@ export async function structureRecipeFromImageUrl(
     ? (await getPrivateBlobBytes(imageUrl)).bytes
     : new URL(imageUrl);
 
-  const { text } = await generateText({
-    model: google(visionModelId),
-    temperature: 0.2,
-    maxOutputTokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Extract the cooking recipe from this image into JSON.
+  const text = await generateTextWithModelFallback(
+    (modelId) => ({
+      model: google(modelId),
+      temperature: 0.2,
+      maxOutputTokens: 4096,
+      messages: [
+        {
+          role: "user" as const,
+          content: [
+            {
+              type: "text" as const,
+              text: `Extract the cooking recipe from this image into JSON.
 ${jsonOnlyRecipeInstructions}
 If handwritten or unclear, make reasonable guesses; keep lines short.`,
-          },
-          { type: "image", image },
-        ],
-      },
-    ],
-  });
+            },
+            { type: "image" as const, image },
+          ],
+        },
+      ],
+    }),
+    visionModelPreferred,
+  );
 
   const json = extractJsonObjectFromModelText(text);
   const draft =

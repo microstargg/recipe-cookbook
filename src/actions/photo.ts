@@ -20,7 +20,13 @@ function friendlyVisionError(err: unknown): string {
     message.includes("NOT_FOUND") ||
     message.includes("is not found")
   ) {
-    return "The Gemini model is unavailable. Update GEMINI_VISION_MODEL (current default: gemini-3.5-flash).";
+    return "The Gemini model is unavailable. Update GEMINI_VISION_MODEL (tried gemini-3.1-flash-lite and fallbacks).";
+  }
+  if (
+    message.toLowerCase().includes("high demand") ||
+    message.toLowerCase().includes("try again later")
+  ) {
+    return "Gemini is busy right now. Wait a minute and try again — we will also try lighter models automatically.";
   }
   if (message.includes("Could not extract")) {
     return message;
