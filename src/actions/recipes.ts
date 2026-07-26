@@ -61,6 +61,8 @@ export async function saveRecipe(
         tags: normalized.tags ?? [],
         sourceUrl: normalized.sourceUrl ?? null,
         notes: normalized.notes ?? null,
+        servings: normalized.servings ?? null,
+        servingsLabel: normalized.servingsLabel ?? null,
         updatedAt: new Date(),
       })
       .where(
@@ -84,6 +86,8 @@ export async function saveRecipe(
       tags: normalized.tags ?? [],
       sourceUrl: normalized.sourceUrl ?? null,
       notes: normalized.notes ?? null,
+      servings: normalized.servings ?? null,
+      servingsLabel: normalized.servingsLabel ?? null,
     })
     .returning();
 

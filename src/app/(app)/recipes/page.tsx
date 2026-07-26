@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { inArray } from "drizzle-orm";
 import { RecipeListClient } from "@/components/recipe-list-client";
 import { toAppMediaUrl } from "@/lib/blob-url";
+import { coerceIngredients } from "@/lib/ingredient-utils";
 
 export default async function RecipesPage() {
   const list = await getRecipes();
@@ -29,7 +30,7 @@ export default async function RecipesPage() {
       updatedAtLabel: r.updatedAt.toLocaleDateString(),
       thumbUrl: rawThumb ? toAppMediaUrl(rawThumb) : undefined,
       tags: r.tags ?? [],
-      ingredients: r.ingredients ?? [],
+      ingredients: coerceIngredients(r.ingredients ?? []),
       steps: r.steps ?? [],
       notes: r.notes,
     };

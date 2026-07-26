@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { formatIngredient } from "@/lib/ingredient-utils";
+import type { RecipeIngredient } from "@/lib/recipe-schema";
 
 export interface RecipeListItem {
   id: string;
@@ -10,7 +12,7 @@ export interface RecipeListItem {
   updatedAtLabel: string;
   thumbUrl?: string;
   tags: string[];
-  ingredients: string[];
+  ingredients: RecipeIngredient[];
   steps: string[];
   notes: string | null;
 }
@@ -21,7 +23,7 @@ function recipeMatches(query: string, r: RecipeListItem): boolean {
   const hay = [
     r.title,
     ...r.tags,
-    ...r.ingredients,
+    ...r.ingredients.map(formatIngredient),
     ...r.steps,
     r.notes ?? "",
     r.sourceUrl ?? "",

@@ -1,7 +1,16 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { getPrivateBlobBytes, isVercelBlobUrl } from "@/lib/blob-storage";
-import { recipeDraftSchema, type RecipeDraft } from "@/lib/recipe-schema";
+import {
+  recipeDraftSchema,
+  type RecipeDraft,
+  type RecipeIngredient,
+} from "@/lib/recipe-schema";
+import {
+  coerceIngredients,
+  parseIngredientLine,
+  parseRecipeYield,
+} from "@/lib/ingredient-utils";
 
 /**
  * Google Gemini via the Vercel AI SDK (`@ai-sdk/google`).
@@ -115,20 +124,6 @@ function coerceStringList(v: unknown): string[] {
           (k) => typeof item[k] === "string" && String(item[k]).trim(),
         );
         if (single) return [String(item[single]).trim()];
-        const amount =
-          typeof item.amount === "string"
-            ? item.amount.trim()
-            : typeof item.amount === "number"
-              ? String(item.amount)
-              : "";
-        const name =
-          typeof item.name === "string"
-            ? item.name.trim()
-            : typeof item.item === "string"
-              ? item.item.trim()
-              : "";
-        if (amount && name) return [`${amount} ${name}`.trim()];
-        if (name) return [name];
         return [];
       }
       return [];
@@ -141,6 +136,70 @@ function coerceStringList(v: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+function coerceIngredientListFromLlm(v: unknown): RecipeIngredient[] {
+  if (v == null || v === "") return [];
+  if (typeof v === "string") {
+    return v
+      .split(/\n+/)
+      .map((line) => line.replace(/^[\s>*-]+|^\d+[.)]\s*/, "").trim())
+      .filter(Boolean)
+      .map(parseIngredientLine);
+  }
+  if (!Array.isArray(v)) return [];
+
+  const out: RecipeIngredient[] = [];
+  for (const item of v) {
+    if (typeof item === "string") {
+      const t = item.trim();
+      if (t) out.push(parseIngredientLine(t));
+      continue;
+    }
+    if (!isRecord(item)) continue;
+    if (Array.isArray(item.itemListElement)) {
+      out.push(...coerceIngredientListFromLlm(item.itemListElement));
+      continue;
+    }
+    const amount =
+      item.amount != null
+        ? String(item.amount).trim()
+        : item.quantity != null
+          ? String(item.quantity).trim()
+          : "";
+    const unit = typeof item.unit === "string" ? item.unit.trim() : "";
+    const name =
+      typeof item.name === "string"
+        ? item.name.trim()
+        : typeof item.item === "string"
+          ? item.item.trim()
+          : typeof item.ingredient === "string"
+            ? item.ingredient.trim()
+            : typeof item.text === "string"
+              ? item.text.trim()
+              : "";
+    const note =
+      typeof item.note === "string"
+        ? item.note.trim()
+        : typeof item.notes === "string"
+          ? item.notes.trim()
+          : "";
+
+    if (amount || unit || name) {
+      if (name && !amount && !unit) {
+        out.push(parseIngredientLine(name));
+      } else {
+        out.push({
+          amount: amount || null,
+          unit: unit || null,
+          name: name || [amount, unit].filter(Boolean).join(" "),
+          note: note || null,
+          raw: [amount, unit, name].filter(Boolean).join(" ") || null,
+        });
+      }
+    }
+  }
+  return out.length ? out : coerceIngredients(v);
 }
 
 function unwrapNestedListField(v: unknown): unknown {
@@ -161,7 +220,7 @@ function recipeDraftFromUnknownJson(raw: unknown): RecipeDraft | null {
         ? String(titleRaw)
         : "";
 
-  const ingredients = coerceStringList(
+  const ingredients = coerceIngredientListFromLlm(
     unwrapNestedListField(
       raw.ingredients ?? raw.ingredient ?? raw.recipeIngredient,
     ),
@@ -186,11 +245,17 @@ function recipeDraftFromUnknownJson(raw: unknown): RecipeDraft | null {
           .filter(Boolean)
       : coerceStringList(tagsRaw);
 
+  const yieldParsed = parseRecipeYield(
+    raw.servings ?? raw.recipeYield ?? raw.yield ?? raw.serves,
+  );
+
   const parsed = recipeDraftSchema.safeParse({
     title: title || "Recipe",
     ingredients,
     steps,
     tags,
+    servings: yieldParsed.servings,
+    servingsLabel: yieldParsed.servingsLabel,
   });
   return parsed.success ? parsed.data : null;
 }
@@ -198,13 +263,18 @@ function recipeDraftFromUnknownJson(raw: unknown): RecipeDraft | null {
 const jsonOnlyRecipeInstructions = `Reply with one JSON object only (no markdown fences, no commentary). Use this shape:
 {
   "title": string,
-  "ingredients": string[],
+  "ingredients": [
+    { "amount": string|null, "unit": string|null, "name": string, "note"?: string|null }
+  ],
   "steps": string[],
-  "tags"?: string[]
+  "tags"?: string[],
+  "servings"?: number|null
 }
 Rules:
-- ingredients: one string per ingredient line (include amounts in the string).
+- ingredients: structured objects. amount is the quantity ("1/2", "2", "750"); unit is the measure ("cup", "g", "tbsp") or null; name is the ingredient. Put prep notes in note.
+- You may also use plain strings for ingredients if needed; prefer structured objects.
 - steps: ordered cooking steps, one string per step.
+- servings: number of portions the recipe makes, if known.
 - tags: optional short labels.
 If a field would be empty, use [] for arrays. Do not use null for arrays.`;
 

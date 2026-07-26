@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "backfill:source": "tsx scripts/backfill-from-source-url.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.82",

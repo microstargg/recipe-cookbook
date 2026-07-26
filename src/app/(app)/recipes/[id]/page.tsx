@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/actions/recipes";
 import { DeleteRecipeButton } from "@/components/delete-recipe-button";
+import { PortionScaler } from "@/components/portion-scaler";
+import { coerceIngredients } from "@/lib/ingredient-utils";
 import { toAppMediaUrl } from "@/lib/blob-url";
 
 type Props = { params: Promise<{ id: string }> };
@@ -10,6 +12,8 @@ export default async function RecipeDetailPage({ params }: Props) {
   const { id } = await params;
   const data = await getRecipe(id);
   if (!data) notFound();
+
+  const ingredients = coerceIngredients(data.ingredients);
 
   return (
     <article>
@@ -59,14 +63,11 @@ export default async function RecipeDetailPage({ params }: Props) {
         </ul>
       )}
 
-      <section className="mb-8">
-        <h2 className="font-medium text-ink">Ingredients</h2>
-        <ul className="mt-2 list-disc pl-5 text-stone-800">
-          {data.ingredients.map((i, j) => (
-            <li key={j}>{i}</li>
-          ))}
-        </ul>
-      </section>
+      <PortionScaler
+        ingredients={ingredients}
+        servings={data.servings ?? null}
+        servingsLabel={data.servingsLabel ?? null}
+      />
 
       <section className="mb-8">
         <h2 className="font-medium text-ink">Steps</h2>

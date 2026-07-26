@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { recipeImages, recipes } from "@/db/schema";
 import { requireUserId } from "@/lib/require-user";
+import { formatIngredient, coerceIngredients } from "@/lib/ingredient-utils";
 import { eq, inArray } from "drizzle-orm";
 
 export async function exportAllRecipesForDownload() {
@@ -32,10 +33,12 @@ export async function exportAllRecipesForDownload() {
   const payload = list.map((r) => ({
     id: r.id,
     title: r.title,
-    ingredients: r.ingredients,
+    ingredients: coerceIngredients(r.ingredients),
     steps: r.steps,
     tags: r.tags,
     sourceUrl: r.sourceUrl,
+    servings: r.servings,
+    servingsLabel: r.servingsLabel,
     notes: r.notes,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
@@ -53,9 +56,12 @@ export async function exportAllRecipesForDownload() {
         `## ${r.title}`,
         "",
         r.sourceUrl ? `**Source:** ${r.sourceUrl}` : "",
+        r.servings != null || r.servingsLabel
+          ? `**Servings:** ${r.servingsLabel ?? r.servings}`
+          : "",
         "",
         "### Ingredients",
-        ...r.ingredients.map((i) => `- ${i}`),
+        ...r.ingredients.map((i) => `- ${formatIngredient(i)}`),
         "",
         "### Steps",
         ...r.steps.map((s, j) => `${j + 1}. ${s}`),

@@ -5,25 +5,50 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { z } from "zod";
-import type { RecipeDraft } from "@/lib/recipe-schema";
+import type { RecipeDraft, RecipeIngredient } from "@/lib/recipe-schema";
 import { toAppMediaUrl } from "@/lib/blob-url";
 import { saveRecipe } from "@/actions/recipes";
+
+const emptyIngredient = (): {
+  amount: string;
+  unit: string;
+  name: string;
+  note: string;
+} => ({ amount: "", unit: "", name: "", note: "" });
+
+function toFormIngredient(i: RecipeIngredient) {
+  return {
+    amount: i.amount ?? "",
+    unit: i.unit ?? "",
+    name: i.name ?? "",
+    note: i.note ?? "",
+  };
+}
 
 const formSchema = z
   .object({
     id: z.string().uuid().optional(),
     title: z.string().min(1),
-    ingredients: z.array(z.object({ value: z.string() })),
+    servings: z.string().optional(),
+    servingsLabel: z.string().optional(),
+    ingredients: z.array(
+      z.object({
+        amount: z.string(),
+        unit: z.string(),
+        name: z.string(),
+        note: z.string(),
+      }),
+    ),
     steps: z.array(z.object({ value: z.string() })),
     tagsRaw: z.string().optional(),
     sourceUrl: z.string().optional(),
     notes: z.string().optional(),
     imageUrl: z.string().optional(),
   })
-  .refine(
-    (d) => d.ingredients.some((i) => i.value.trim().length > 0),
-    { path: ["ingredients"], message: "Add at least one ingredient" },
-  )
+  .refine((d) => d.ingredients.some((i) => i.name.trim().length > 0), {
+    path: ["ingredients"],
+    message: "Add at least one ingredient",
+  })
   .refine((d) => d.steps.some((s) => s.value.trim().length > 0), {
     path: ["steps"],
     message: "Add at least one step",
@@ -44,9 +69,12 @@ export function RecipeForm(props: {
 
   const defaultValues: FormValues = {
     title: props.initial?.title ?? "",
+    servings:
+      props.initial?.servings != null ? String(props.initial.servings) : "",
+    servingsLabel: props.initial?.servingsLabel ?? "",
     ingredients: props.initial?.ingredients?.length
-      ? props.initial.ingredients.map((s) => ({ value: s }))
-      : [{ value: "" }],
+      ? props.initial.ingredients.map(toFormIngredient)
+      : [emptyIngredient()],
     steps: props.initial?.steps?.length
       ? props.initial.steps.map((s) => ({ value: s }))
       : [{ value: "" }],
@@ -76,10 +104,26 @@ export function RecipeForm(props: {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const ingredients = data.ingredients
-      .map((i) => i.value.trim())
-      .filter(Boolean);
+    const ingredients: RecipeIngredient[] = data.ingredients
+      .filter((i) => i.name.trim())
+      .map((i) => ({
+        amount: i.amount.trim() || null,
+        unit: i.unit.trim() || null,
+        name: i.name.trim(),
+        note: i.note.trim() || null,
+        raw: [i.amount, i.unit, i.name, i.note ? `(${i.note})` : ""]
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .join(" "),
+      }));
     const stepList = data.steps.map((s) => s.value.trim()).filter(Boolean);
+    const servingsRaw = data.servings?.trim();
+    const servingsNum = servingsRaw ? Number(servingsRaw) : null;
+    const servings =
+      servingsNum != null && Number.isFinite(servingsNum) && servingsNum > 0
+        ? Math.round(servingsNum)
+        : null;
+
     startTransition(async () => {
       try {
         const imageUrl =
@@ -92,6 +136,8 @@ export function RecipeForm(props: {
           tags,
           sourceUrl: data.sourceUrl || undefined,
           notes: data.notes || undefined,
+          servings,
+          servingsLabel: data.servingsLabel?.trim() || null,
           imageUrl,
         });
         router.push(`/recipes/${saved.id}`);
@@ -129,6 +175,32 @@ export function RecipeForm(props: {
         )}
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-stone-700">
+            Servings
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={99}
+            placeholder="e.g. 4"
+            className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
+            {...register("servings")}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-stone-700">
+            Servings label (optional)
+          </label>
+          <input
+            placeholder="e.g. 4–6 servings"
+            className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
+            {...register("servingsLabel")}
+          />
+        </div>
+      </div>
+
       <div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <label className="text-sm font-medium text-stone-700">
@@ -136,19 +208,40 @@ export function RecipeForm(props: {
           </label>
           <button
             type="button"
-            onClick={() => ing.append({ value: "" })}
+            onClick={() => ing.append(emptyIngredient())}
             className="min-h-[44px] text-sm text-accent sm:min-h-0"
           >
             + Add line
           </button>
         </div>
-        <ul className="mt-2 flex flex-col gap-2">
+        <ul className="mt-2 flex flex-col gap-3">
           {ing.fields.map((field, index) => (
-            <li key={field.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                className="w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
-                {...register(`ingredients.${index}.value` as const)}
-              />
+            <li
+              key={field.id}
+              className="flex flex-col gap-2 rounded border border-stone-200 bg-white/60 p-3 sm:flex-row sm:items-start"
+            >
+              <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+                <input
+                  placeholder="Amount"
+                  className="rounded border border-stone-300 bg-white px-2 py-2.5 text-base sm:py-2 sm:text-sm"
+                  {...register(`ingredients.${index}.amount` as const)}
+                />
+                <input
+                  placeholder="Unit"
+                  className="rounded border border-stone-300 bg-white px-2 py-2.5 text-base sm:py-2 sm:text-sm"
+                  {...register(`ingredients.${index}.unit` as const)}
+                />
+                <input
+                  placeholder="Ingredient"
+                  className="col-span-2 rounded border border-stone-300 bg-white px-2 py-2.5 text-base sm:py-2 sm:text-sm"
+                  {...register(`ingredients.${index}.name` as const)}
+                />
+                <input
+                  placeholder="Note (optional)"
+                  className="col-span-2 rounded border border-stone-300 bg-white px-2 py-2.5 text-base sm:col-span-4 sm:py-2 sm:text-sm"
+                  {...register(`ingredients.${index}.note` as const)}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => ing.remove(index)}

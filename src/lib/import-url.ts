@@ -1,14 +1,22 @@
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
+import type { RecipeIngredient } from "@/lib/recipe-schema";
+import {
+  formatIngredient,
+  parseIngredientLine,
+  parseRecipeYield,
+} from "@/lib/ingredient-utils";
 
 export type ParsedRecipe = {
   title: string;
-  ingredients: string[];
+  ingredients: RecipeIngredient[];
   steps: string[];
   source: "jsonld" | "readability" | "empty" | "next-data";
   rawWarnings?: string[];
   /** Resolved absolute http(s) URL for the primary recipe image, if found. */
   coverImageUrl?: string | null;
+  servings?: number | null;
+  servingsLabel?: string | null;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -73,20 +81,55 @@ function extractSchemaImage(raw: unknown, pageUrl: string): string | null {
   return null;
 }
 
-function toStringArray(v: unknown): string[] {
-  if (typeof v === "string") return [v].filter(Boolean);
-  if (Array.isArray(v)) {
-    return v
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (isRecord(item) && typeof item.text === "string") return item.text;
-        if (isRecord(item) && typeof item["@type"] === "string" && item.name)
-          return String(item.name);
-        return null;
-      })
-      .filter((x): x is string => Boolean(x));
+function toIngredientList(v: unknown): RecipeIngredient[] {
+  if (typeof v === "string") {
+    const t = v.trim();
+    return t ? [parseIngredientLine(t)] : [];
   }
-  return [];
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((item) => {
+      if (typeof item === "string") {
+        const t = item.trim();
+        return t ? parseIngredientLine(t) : null;
+      }
+      if (isRecord(item)) {
+        if (typeof item.text === "string" && item.text.trim()) {
+          return parseIngredientLine(item.text.trim());
+        }
+        const amount =
+          item.amount != null
+            ? String(item.amount).trim()
+            : item.quantity != null
+              ? String(item.quantity).trim()
+              : "";
+        const unit =
+          typeof item.unit === "string"
+            ? item.unit.trim()
+            : typeof item.unitText === "string"
+              ? item.unitText.trim()
+              : "";
+        const name =
+          typeof item.name === "string"
+            ? item.name.trim()
+            : typeof item.item === "string"
+              ? item.item.trim()
+              : typeof item.ingredient === "string"
+                ? item.ingredient.trim()
+                : "";
+        if (amount || unit || name) {
+          return {
+            amount: amount || null,
+            unit: unit || null,
+            name: name || [amount, unit].filter(Boolean).join(" ") || "ingredient",
+            note: typeof item.note === "string" ? item.note : null,
+            raw: [amount, unit, name].filter(Boolean).join(" ") || null,
+          } satisfies RecipeIngredient;
+        }
+      }
+      return null;
+    })
+    .filter((x): x is RecipeIngredient => x != null);
 }
 
 const MAX_FALLBACK_STEP_LINES = 120;
@@ -301,8 +344,11 @@ function parseRecipeObject(
   if (!isRecipe) return null;
 
   const name = typeof obj.name === "string" ? obj.name : "Untitled recipe";
-  const ingredients = toStringArray(obj.recipeIngredient);
+  const ingredients = toIngredientList(obj.recipeIngredient);
   const instructions = extractHowToSteps(obj.recipeInstructions);
+  const yieldParsed = parseRecipeYield(
+    obj.recipeYield ?? obj.yield ?? obj.recipeServings,
+  );
   const coverImageUrl =
     extractSchemaImage(obj.image, pageUrl) ??
     (typeof obj.thumbnailUrl === "string"
@@ -317,6 +363,8 @@ function parseRecipeObject(
       steps: [],
       source: "jsonld",
       coverImageUrl: safeCover,
+      servings: yieldParsed.servings,
+      servingsLabel: yieldParsed.servingsLabel,
       rawWarnings: ["Recipe found in JSON-LD but no ingredients or steps."],
     };
   }
@@ -327,6 +375,8 @@ function parseRecipeObject(
     steps: instructions,
     source: "jsonld",
     coverImageUrl: safeCover,
+    servings: yieldParsed.servings,
+    servingsLabel: yieldParsed.servingsLabel,
   };
 }
 
@@ -402,21 +452,39 @@ export function extractTrpcRecipeFromNextData(
     const instArr = data.instructionsArray;
     if (!Array.isArray(ingArr) && !Array.isArray(instArr)) continue;
 
-    const ingredients: string[] = [];
+    const ingredients: RecipeIngredient[] = [];
     if (Array.isArray(ingArr)) {
       for (const row of ingArr) {
         if (!isRecord(row)) continue;
         if (row._type === "ingredientSection" && typeof row.section === "string") {
-          ingredients.push(`— ${row.section} —`);
+          ingredients.push({
+            amount: null,
+            unit: null,
+            name: `— ${row.section} —`,
+            raw: `— ${row.section} —`,
+          });
         }
         if (row._type === "ingredient") {
-          const amount = row.amount != null ? String(row.amount) : "";
-          const unit = typeof row.unit === "string" ? row.unit : "";
-          const item = typeof row.item === "string" ? row.item : "";
-          let line = [amount, unit, item].filter(Boolean).join(" ").trim();
+          const amount =
+            row.amount != null && String(row.amount).trim()
+              ? String(row.amount).trim()
+              : null;
+          const unit =
+            typeof row.unit === "string" && row.unit.trim()
+              ? row.unit.trim()
+              : null;
+          const item = typeof row.item === "string" ? row.item.trim() : "";
           const notes = flattenPortableTextBlocks(row.notes);
-          if (notes) line += ` (${notes})`;
-          if (line) ingredients.push(line);
+          const raw = [amount, unit, item].filter(Boolean).join(" ").trim();
+          if (raw || notes) {
+            ingredients.push({
+              amount,
+              unit,
+              name: item || raw || "ingredient",
+              note: notes || null,
+              raw: notes ? `${raw} (${notes})` : raw || null,
+            });
+          }
         }
       }
     }
@@ -450,12 +518,18 @@ export function extractTrpcRecipeFromNextData(
 
     if (!ingredients.length && !steps.length) continue;
 
+    const yieldParsed = parseRecipeYield(
+      data.servings ?? data.yield ?? data.recipeYield ?? data.serves,
+    );
+
     return {
       title,
       ingredients,
       steps,
       source: "next-data",
       coverImageUrl,
+      servings: yieldParsed.servings,
+      servingsLabel: yieldParsed.servingsLabel,
     };
   }
 

@@ -49,11 +49,13 @@ async function main() {
     title: parsed.title,
     ingredients: parsed.ingredients.length
       ? parsed.ingredients
-      : ["(see steps)"],
+      : [{ amount: null, unit: null, name: "(see steps)", raw: "(see steps)" }],
     steps: parsed.steps.length ? parsed.steps : ["(see original page)"],
     tags: [],
     sourceUrl: url,
     notes: parsed.rawWarnings?.filter(Boolean).join(" ") || undefined,
+    servings: parsed.servings ?? null,
+    servingsLabel: parsed.servingsLabel ?? null,
     imageUrl,
   });
 
@@ -67,6 +69,8 @@ async function main() {
       tags: draft.tags ?? [],
       sourceUrl: draft.sourceUrl ?? null,
       notes: draft.notes ?? null,
+      servings: draft.servings ?? null,
+      servingsLabel: draft.servingsLabel ?? null,
     })
     .returning();
 

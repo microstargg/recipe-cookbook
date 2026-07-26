@@ -50,6 +50,8 @@ export function PhotoImportForm() {
         tags: d.tags ?? [],
         sourceUrl: d.sourceUrl,
         notes: d.notes,
+        servings: d.servings ?? null,
+        servingsLabel: d.servingsLabel ?? null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

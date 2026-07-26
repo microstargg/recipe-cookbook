@@ -4,6 +4,7 @@ import { requireUserId } from "@/lib/require-user";
 import { structureRecipeFromPlainText } from "@/lib/llm-recipe-fallback";
 import { fetchAndParseUrl, type ParsedRecipe } from "@/lib/import-url";
 import { recipeDraftSchema, type RecipeDraft } from "@/lib/recipe-schema";
+import { formatIngredient } from "@/lib/ingredient-utils";
 import { rehostRecipeImageIfConfigured } from "@/lib/rehost-recipe-image";
 
 /** Warnings that mean extraction is fuzzy and AI should re-structure page text. */
@@ -17,7 +18,10 @@ const WEAK_EXTRACTION_PATTERNS = [
 async function finalizeImportedDraft(
   parsed: ParsedRecipe,
   pageUrl: URL,
-  fields: Pick<RecipeDraft, "title" | "ingredients" | "steps" | "tags">,
+  fields: Pick<
+    RecipeDraft,
+    "title" | "ingredients" | "steps" | "tags" | "servings" | "servingsLabel"
+  >,
   warnings: string[],
 ): Promise<RecipeDraft> {
   let imageUrl = parsed.coverImageUrl ?? undefined;
@@ -33,7 +37,10 @@ async function finalizeImportedDraft(
 }
 
 function combinedPageText(parsed: ParsedRecipe): string {
-  return [parsed.ingredients.join("\n"), parsed.steps.join("\n\n")]
+  return [
+    parsed.ingredients.map(formatIngredient).join("\n"),
+    parsed.steps.join("\n\n"),
+  ]
     .join("\n\n")
     .trim();
 }
@@ -63,7 +70,7 @@ function buildArticleScrapeBody(parsed: ParsedRecipe): string {
   if (parsed.ingredients.length) {
     chunks.push(
       "Ingredient lines from structured data (may be incomplete):",
-      ...parsed.ingredients.map((i) => `- ${i}`),
+      ...parsed.ingredients.map((i) => `- ${formatIngredient(i)}`),
     );
   }
   chunks.push("", "Extracted article / method text:", parsed.steps.join("\n\n"));
@@ -86,6 +93,8 @@ export async function importRecipeFromUrl(url: string) {
   let parsed = (await fetchAndParseUrl(u.toString())).parsed;
   let warnings = [...(parsed.rawWarnings ?? [])];
   let tagsFromAi: string[] = [];
+  let servings = parsed.servings ?? null;
+  let servingsLabel = parsed.servingsLabel ?? null;
 
   if (
     !parsed.steps.length &&
@@ -96,7 +105,7 @@ export async function importRecipeFromUrl(url: string) {
       parsed.title,
       "",
       "Ingredients:",
-      ...parsed.ingredients.map((x) => `- ${x}`),
+      ...parsed.ingredients.map((x) => `- ${formatIngredient(x)}`),
       "",
       "There are no usable step-by-step instructions in the source data. Write clear, ordered cooking steps that match this title and these ingredients. Use only reasonable home-cooking techniques.",
     ].join("\n");
@@ -104,6 +113,10 @@ export async function importRecipeFromUrl(url: string) {
     if (ai?.steps?.length) {
       parsed = { ...parsed, steps: ai.steps };
       if (ai.tags?.length) tagsFromAi = ai.tags;
+      if (servings == null && ai.servings != null) {
+        servings = ai.servings;
+        servingsLabel = ai.servingsLabel ?? servingsLabel;
+      }
       warnings.push(
         "Steps were generated with AI from the title and ingredients because none were found on the page; verify before cooking.",
       );
@@ -123,6 +136,10 @@ export async function importRecipeFromUrl(url: string) {
         steps: ai.steps,
       };
       tagsFromAi = ai.tags ?? [];
+      if (servings == null && ai.servings != null) {
+        servings = ai.servings;
+        servingsLabel = ai.servingsLabel ?? servingsLabel;
+      }
       warnings = warnings.filter(
         (w) => !WEAK_EXTRACTION_PATTERNS.some((re) => re.test(w)),
       );
@@ -148,11 +165,13 @@ export async function importRecipeFromUrl(url: string) {
       title: parsed.title,
       ingredients: parsed.ingredients.length
         ? parsed.ingredients
-        : ["(see steps)"],
+        : [{ amount: null, unit: null, name: "(see steps)", raw: "(see steps)" }],
       steps: parsed.steps.length
         ? parsed.steps
         : ["(see original page)"],
       tags: tagsFromAi,
+      servings,
+      servingsLabel,
     },
     warnings,
   );

@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS "recipes" (
   "steps" jsonb DEFAULT '[]'::jsonb NOT NULL,
   "tags" jsonb DEFAULT '[]'::jsonb,
   "source_url" text,
+  "servings" integer,
+  "servings_label" text,
   "raw_extract_meta" jsonb,
   "notes" text,
   "created_at" timestamptz DEFAULT now() NOT NULL,
@@ -28,3 +30,7 @@ CREATE TABLE IF NOT EXISTS "recipe_images" (
 
 CREATE INDEX IF NOT EXISTS "recipe_images_recipe_idx"
   ON "recipe_images" ("recipe_id");
+
+-- Additive migration for existing DBs (safe to re-run)
+ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "servings" integer;
+ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "servings_label" text;

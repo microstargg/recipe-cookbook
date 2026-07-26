@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getRecipe } from "@/actions/recipes";
 import { RecipeForm } from "@/components/recipe-form";
+import { coerceIngredients } from "@/lib/ingredient-utils";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -19,11 +20,13 @@ export default async function EditRecipePage({ params }: Props) {
           initial={{
             id: data.id,
             title: data.title,
-            ingredients: data.ingredients,
+            ingredients: coerceIngredients(data.ingredients),
             steps: data.steps,
             tags: data.tags ?? [],
             sourceUrl: data.sourceUrl ?? undefined,
             notes: data.notes ?? undefined,
+            servings: data.servings ?? null,
+            servingsLabel: data.servingsLabel ?? null,
           }}
           submitLabel="Update recipe"
         />
