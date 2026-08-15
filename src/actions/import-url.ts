@@ -128,23 +128,51 @@ function buildArticleScrapeBody(parsed: ParsedRecipe): string {
   return chunks.join("\n");
 }
 
-export async function importRecipeFromUrl(url: string) {
-  await requireUserId();
-
-  let u: URL;
+export async function importRecipeFromUrl(
+  url: string,
+): Promise<{ ok: true; draft: RecipeDraft } | { ok: false; error: string }> {
   try {
-    u = new URL(url);
-  } catch {
-    throw new Error("Invalid URL");
-  }
-  if (!["http:", "https:"].includes(u.protocol)) {
-    throw new Error("Only http(s) URLs are allowed");
-  }
+    await requireUserId();
 
-  if (isInstagramUrl(u)) {
-    return importRecipeFromInstagram(u);
-  }
+    let u: URL;
+    try {
+      u = new URL(url);
+    } catch {
+      return { ok: false, error: "Invalid URL" };
+    }
+    if (!["http:", "https:"].includes(u.protocol)) {
+      return { ok: false, error: "Only http(s) URLs are allowed" };
+    }
 
+    if (isInstagramUrl(u)) {
+      const draft = await importRecipeFromInstagram(u);
+      return { ok: true, draft };
+    }
+
+    const draft = await importRecipeFromWebPage(u);
+    return { ok: true, draft };
+  } catch (err) {
+    return { ok: false, error: friendlyImportError(err) };
+  }
+}
+
+function friendlyImportError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const cleaned = message.replace(/^Error:\s*/i, "").trim();
+  if (
+    cleaned &&
+    cleaned.length < 320 &&
+    !cleaned.includes("digest") &&
+    !cleaned.includes("omitted") &&
+    !cleaned.includes("at ignore-listed")
+  ) {
+    return cleaned;
+  }
+  console.error("[importRecipeFromUrl]", err);
+  return "Could not import that URL. Try again, or import a screenshot instead.";
+}
+
+async function importRecipeFromWebPage(u: URL): Promise<RecipeDraft> {
   let parsed = (await fetchAndParseUrl(u.toString())).parsed;
   let warnings = [...(parsed.rawWarnings ?? [])];
   let tagsFromAi: string[] = [];

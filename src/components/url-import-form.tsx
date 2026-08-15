@@ -16,10 +16,19 @@ export function UrlImportForm() {
     setError(null);
     startTransition(async () => {
       try {
-        const d = await importRecipeFromUrl(url);
-        setDraft(d);
+        const result = await importRecipeFromUrl(url);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setDraft(result.draft);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Import failed");
+        const message = err instanceof Error ? err.message : "Import failed";
+        setError(
+          message.includes("omitted") || message.includes("digest")
+            ? "Could not import that URL. Try again, or import a screenshot instead."
+            : message,
+        );
       }
     });
   }
