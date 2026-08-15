@@ -1,8 +1,15 @@
 "use server";
 
 import { requireUserId } from "@/lib/require-user";
-import { structureRecipeFromPlainText } from "@/lib/llm-recipe-fallback";
+import {
+  hasLlmApiKey,
+  structureRecipeFromPlainText,
+} from "@/lib/llm-recipe-fallback";
 import { fetchAndParseUrl, type ParsedRecipe } from "@/lib/import-url";
+import {
+  fetchInstagramRecipeSource,
+  isInstagramUrl,
+} from "@/lib/import-instagram";
 import { recipeDraftSchema, type RecipeDraft } from "@/lib/recipe-schema";
 import { formatIngredient } from "@/lib/ingredient-utils";
 import { rehostRecipeImageIfConfigured } from "@/lib/rehost-recipe-image";
@@ -34,6 +41,50 @@ async function finalizeImportedDraft(
     notes: warnings.length ? warnings.join(" ") : undefined,
     imageUrl,
   });
+}
+
+async function importRecipeFromInstagram(pageUrl: URL): Promise<RecipeDraft> {
+  if (!hasLlmApiKey()) {
+    throw new Error(
+      "Instagram import needs GOOGLE_GENERATIVE_AI_API_KEY (get a free key at https://aistudio.google.com/apikey).",
+    );
+  }
+
+  const extracted = await fetchInstagramRecipeSource(pageUrl);
+  const ai = await structureRecipeFromPlainText(extracted.bodyText, {
+    context: "instagram",
+  });
+  if (!ai?.ingredients.length || !ai.steps.length) {
+    throw new Error(
+      "Could not find a recipe in that Instagram post. If the recipe is only in the video, import a screenshot instead.",
+    );
+  }
+
+  const parsed: ParsedRecipe = {
+    title: ai.title,
+    ingredients: ai.ingredients,
+    steps: ai.steps,
+    source: "readability",
+    coverImageUrl: extracted.coverImageUrl,
+    rawWarnings: extracted.warnings,
+  };
+
+  return finalizeImportedDraft(
+    parsed,
+    pageUrl,
+    {
+      title: ai.title,
+      ingredients: ai.ingredients,
+      steps: ai.steps,
+      tags: ai.tags ?? [],
+      servings: ai.servings ?? null,
+      servingsLabel: ai.servingsLabel ?? null,
+    },
+    [
+      ...extracted.warnings,
+      "Recipe was structured with AI from the Instagram caption and comments; verify before cooking.",
+    ],
+  );
 }
 
 function combinedPageText(parsed: ParsedRecipe): string {
@@ -88,6 +139,10 @@ export async function importRecipeFromUrl(url: string) {
   }
   if (!["http:", "https:"].includes(u.protocol)) {
     throw new Error("Only http(s) URLs are allowed");
+  }
+
+  if (isInstagramUrl(u)) {
+    return importRecipeFromInstagram(u);
   }
 
   let parsed = (await fetchAndParseUrl(u.toString())).parsed;

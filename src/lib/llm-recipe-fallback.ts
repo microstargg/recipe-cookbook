@@ -292,23 +292,33 @@ async function extractRecipeWithTextPrompt(prompt: string): Promise<RecipeDraft 
   return json != null ? recipeDraftFromUnknownJson(json) : null;
 }
 
+function contextHints(
+  context: "plain" | "article-scrape" | "instagram" | undefined,
+): string {
+  if (context === "article-scrape") {
+    return `The source may be messy: story text, ads, duplicated sections. Ignore bios, subscribe boxes, and unrelated paragraphs.
+Isolate the real recipe — ingredient lines (with amounts) and ordered cooking steps.
+`;
+  }
+  if (context === "instagram") {
+    return `This text is from an Instagram reel or post. The recipe may be in the caption, a pinned comment, or a comment from the creator — not necessarily the first comment.
+Ignore likes, one-word comments like "Recipe", substitution questions, login prompts, profile bios, and unrelated chatter.
+Prefer the block that actually lists ingredients and cooking steps. Do not invent a recipe from marketing caption fluff if a real ingredient list exists in the comments.
+`;
+  }
+  return "";
+}
+
 export async function structureRecipeFromPlainText(
   bodyText: string,
-  options?: { context?: "plain" | "article-scrape" },
+  options?: { context?: "plain" | "article-scrape" | "instagram" },
 ): Promise<RecipeDraft | null> {
   if (!hasLlmApiKey()) return null;
   if (bodyText.length < 20) return null;
 
-  const articleHints =
-    options?.context === "article-scrape"
-      ? `The source may be messy: story text, ads, duplicated sections. Ignore bios, subscribe boxes, and unrelated paragraphs.
-Isolate the real recipe — ingredient lines (with amounts) and ordered cooking steps.
-`
-      : "";
-
   const prompt = `You extract home recipes into JSON.
 ${jsonOnlyRecipeInstructions}
-${articleHints}
+${contextHints(options?.context)}
 Source text:
 
 ${bodyText.slice(0, 12_000)}`;

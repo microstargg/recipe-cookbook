@@ -7,7 +7,8 @@ export default function ImportUrlPage() {
         Import from URL
       </h1>
       <p className="mt-1 text-stone-600">
-        Paste a link to a recipe page. You’ll review everything before it’s saved.
+        Paste a recipe page or Instagram share link. You’ll review everything before
+        it’s saved.
       </p>
       <div className="mt-8">
         <UrlImportForm />

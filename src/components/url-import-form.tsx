@@ -40,7 +40,7 @@ export function UrlImportForm() {
       <form onSubmit={onImport} className="flex flex-col gap-4 sm:flex-row sm:items-end">
         <div className="flex-1">
           <label htmlFor="url" className="block text-sm font-medium text-stone-700">
-            Recipe page URL
+            Recipe or Instagram URL
           </label>
           <input
             id="url"
@@ -48,7 +48,7 @@ export function UrlImportForm() {
             onChange={(e) => setUrl(e.target.value)}
             type="url"
             required
-            placeholder="https://"
+            placeholder="https://www.instagram.com/reel/…"
             className="mt-1 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-base sm:py-2 sm:text-sm"
           />
         </div>
@@ -66,8 +66,11 @@ export function UrlImportForm() {
         </p>
       )}
       <p className="mt-6 text-sm text-stone-600">
-        We read public <code className="rounded bg-stone-100 px-1">schema.org</code> recipe
-        data when available, then fall back to heuristics (and optional AI) for plain text.
+        Recipe sites use public{" "}
+        <code className="rounded bg-stone-100 px-1">schema.org</code> data when available,
+        then heuristics and optional AI. Instagram share links work when the recipe is in
+        the caption or comments. Private reels, or recipes that only appear in the video,
+        still need a screenshot.
       </p>
     </div>
   );
