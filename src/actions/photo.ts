@@ -1,6 +1,8 @@
 "use server";
 
-import { requireUserId } from "@/lib/require-user";
+import { isVercelBlobUrl } from "@/lib/blob-url";
+import { requireHousehold } from "@/lib/household";
+import { householdCanReadBlob } from "@/lib/household-media";
 import { structureRecipeFromImageUrl } from "@/lib/llm-recipe-fallback";
 import type { RecipeDraft } from "@/lib/recipe-schema";
 
@@ -48,9 +50,12 @@ export async function parseRecipeFromImageUrl(
   imageUrl: string,
 ): Promise<{ ok: true; draft: RecipeDraft } | { ok: false; error: string }> {
   try {
-    await requireUserId();
+    const { householdId } = await requireHousehold();
     if (!imageUrl?.startsWith("https://")) {
       return { ok: false, error: "A secure image URL is required" };
+    }
+    if (isVercelBlobUrl(imageUrl) && !(await householdCanReadBlob(imageUrl, householdId))) {
+      return { ok: false, error: "That image isn't available to your household" };
     }
     const draft = await structureRecipeFromImageUrl(imageUrl);
     return { ok: true, draft };

@@ -6,9 +6,11 @@ import { inArray } from "drizzle-orm";
 import { RecipeListClient } from "@/components/recipe-list-client";
 import { toAppMediaUrl } from "@/lib/blob-url";
 import { coerceIngredients } from "@/lib/ingredient-utils";
+import { requireHousehold } from "@/lib/household";
 
 export default async function RecipesPage() {
   const list = await getRecipes();
+  const { householdName } = await requireHousehold();
   const ids = list.map((r) => r.id);
   const firstImage = new Map<string, string>();
   if (ids.length) {
@@ -44,7 +46,7 @@ export default async function RecipesPage() {
             Your recipes
           </h1>
           <p className="mt-1 text-stone-600">
-            Your saved recipes in Ben&apos;s Cookbook — they won&apos;t disappear when a site goes
+            Your saved recipes in {householdName} — they won&apos;t disappear when a site goes
             offline.
           </p>
         </div>

@@ -2,17 +2,17 @@
 
 import { db } from "@/db";
 import { recipeImages, recipes } from "@/db/schema";
-import { requireUserId } from "@/lib/require-user";
+import { requireHousehold } from "@/lib/household";
 import { formatIngredient, coerceIngredients } from "@/lib/ingredient-utils";
 import { eq, inArray } from "drizzle-orm";
 
 export async function exportAllRecipesForDownload() {
-  const userId = await requireUserId();
+  const { householdId } = await requireHousehold();
 
   const list = await db
     .select()
     .from(recipes)
-    .where(eq(recipes.userId, userId));
+    .where(eq(recipes.householdId, householdId));
 
   if (!list.length) {
     return { json: "[]\n", markdown: "# No recipes yet\n" };

@@ -1,7 +1,8 @@
 import { get } from "@vercel/blob";
-import { auth } from "@/lib/auth/server";
 import { BLOB_ACCESS } from "@/lib/blob-storage";
 import { isVercelBlobUrl } from "@/lib/blob-url";
+import { getSessionUser, requireHousehold } from "@/lib/household";
+import { householdCanReadBlob } from "@/lib/household-media";
 
 export const runtime = "nodejs";
 
@@ -9,16 +10,18 @@ export const runtime = "nodejs";
  * Authenticated proxy for private Vercel Blob images (img tags cannot send the Blob token).
  */
 export async function GET(request: Request) {
-  const { data: session } = await auth.getSession({
-    headers: request.headers,
-  } as Parameters<typeof auth.getSession>[0]);
-  if (!session?.user?.id) {
+  if (!(await getSessionUser())) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const url = new URL(request.url).searchParams.get("url");
   if (!url || !isVercelBlobUrl(url)) {
     return Response.json({ error: "Invalid media URL" }, { status: 400 });
+  }
+
+  const { householdId } = await requireHousehold();
+  if (!(await householdCanReadBlob(url, householdId))) {
+    return new Response("Not found", { status: 404 });
   }
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
