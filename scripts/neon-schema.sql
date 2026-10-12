@@ -120,3 +120,41 @@ CREATE TABLE IF NOT EXISTS "quick_meals" (
   "created_at" timestamptz DEFAULT now() NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "quick_meals_household_idx" ON "quick_meals" ("household_id");
+
+-- Shopping lists. Safe to re-run.
+CREATE TABLE IF NOT EXISTS "shopping_lists" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "household_id" uuid NOT NULL REFERENCES "households"("id") ON DELETE CASCADE,
+  "week_start" date NOT NULL,
+  "plan_signature" text NOT NULL,
+  "generated_at" timestamptz DEFAULT now() NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "shopping_lists_household_week_uidx" ON "shopping_lists" ("household_id", "week_start");
+
+CREATE TABLE IF NOT EXISTS "shopping_items" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "list_id" uuid NOT NULL REFERENCES "shopping_lists"("id") ON DELETE CASCADE,
+  "key" text NOT NULL,
+  "name" text NOT NULL,
+  "quantity" text DEFAULT '' NOT NULL,
+  "aisle" text NOT NULL,
+  "sources" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "checked" boolean DEFAULT false NOT NULL,
+  "manual" boolean DEFAULT false NOT NULL,
+  "created_at" timestamptz DEFAULT now() NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "shopping_items_list_idx" ON "shopping_items" ("list_id");
+
+CREATE TABLE IF NOT EXISTS "aisle_overrides" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "household_id" uuid NOT NULL REFERENCES "households"("id") ON DELETE CASCADE,
+  "key" text NOT NULL,
+  "aisle" text NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "aisle_overrides_household_key_uidx" ON "aisle_overrides" ("household_id", "key");
+
+CREATE TABLE IF NOT EXISTS "ingredient_aisle_cache" (
+  "key" text PRIMARY KEY NOT NULL,
+  "aisle" text NOT NULL,
+  "created_at" timestamptz DEFAULT now() NOT NULL
+);

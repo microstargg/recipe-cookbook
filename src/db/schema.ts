@@ -8,6 +8,7 @@ import {
   integer,
   uniqueIndex,
   date,
+  boolean,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -217,6 +218,72 @@ export const quickMeals = pgTable(
   (t) => [index("quick_meals_household_idx").on(t.householdId)],
 );
 
+/** One shopping list per household per plan week. */
+export const shoppingLists = pgTable(
+  "shopping_lists",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    weekStart: date("week_start", { mode: "string" }).notNull(),
+    /** Fingerprint of the plan when generated; differs once the plan changes. */
+    planSignature: text("plan_signature").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [uniqueIndex("shopping_lists_household_week_uidx").on(t.householdId, t.weekStart)],
+);
+
+export const shoppingItems = pgTable(
+  "shopping_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => shoppingLists.id, { onDelete: "cascade" }),
+    /** Normalized name used for merging and remembering aisles. */
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    quantity: text("quantity").notNull().default(""),
+    aisle: text("aisle").notNull(),
+    sources: jsonb("sources").$type<string[]>().notNull().default([]),
+    checked: boolean("checked").notNull().default(false),
+    /** Added by hand rather than generated from the plan; survives regeneration. */
+    manual: boolean("manual").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("shopping_items_list_idx").on(t.listId)],
+);
+
+/** Where this household says an item lives, after moving it on a list. */
+export const aisleOverrides = pgTable(
+  "aisle_overrides",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    aisle: text("aisle").notNull(),
+  },
+  (t) => [uniqueIndex("aisle_overrides_household_key_uidx").on(t.householdId, t.key)],
+);
+
+/** Shared cache of AI aisle guesses for items the keyword list doesn't know. */
+export const ingredientAisleCache = pgTable("ingredient_aisle_cache", {
+  key: text("key").primaryKey(),
+  aisle: text("aisle").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export type ShoppingList = typeof shoppingLists.$inferSelect;
+export type ShoppingItem = typeof shoppingItems.$inferSelect;
 export type PlanEntry = typeof planEntries.$inferSelect;
 export type FreezerItem = typeof freezerItems.$inferSelect;
 export type QuickMeal = typeof quickMeals.$inferSelect;

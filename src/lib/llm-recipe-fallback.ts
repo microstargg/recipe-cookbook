@@ -373,3 +373,41 @@ If handwritten or unclear, make reasonable guesses; keep lines short.`,
   }
   return draft;
 }
+
+/**
+ * Ask Gemini which supermarket section each grocery item belongs in.
+ * Returns only answers that match one of `aisles`; unknowns are left out.
+ */
+export async function classifyGroceryAisles(
+  names: string[],
+  aisles: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (!names.length || !hasLlmApiKey()) return {};
+  const prompt = [
+    "You sort a UK supermarket shopping list into store sections.",
+    `Sections (key: label): ${Object.entries(aisles)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("; ")}.`,
+    'Reply with only JSON: {"items": {"<item exactly as given>": "<section key>"}}.',
+    "Items:",
+    ...names.map((n) => `- ${n}`),
+  ].join("\n");
+
+  const text = await generateTextWithModelFallback(
+    (modelId) => ({
+      model: google(modelId),
+      prompt,
+      temperature: 0,
+      maxOutputTokens: 2048,
+    }),
+    textModelPreferred,
+  );
+  const json = extractJsonObjectFromModelText(text);
+  const items = isRecord(json) && isRecord(json.items) ? json.items : {};
+  const out: Record<string, string> = {};
+  for (const name of names) {
+    const v = items[name];
+    if (typeof v === "string" && v in aisles) out[name] = v;
+  }
+  return out;
+}
