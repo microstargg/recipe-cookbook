@@ -2,29 +2,29 @@
 
 import { db } from "@/db";
 import { recipeImages, recipes } from "@/db/schema";
-import { requireUserId } from "@/lib/require-user";
+import { requireHousehold } from "@/lib/household";
 import { recipeDraftSchema, normalizeDraft } from "@/lib/recipe-schema";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 export async function getRecipes() {
-  const userId = await requireUserId();
+  const { householdId } = await requireHousehold();
 
   return db
     .select()
     .from(recipes)
-    .where(eq(recipes.userId, userId))
+    .where(eq(recipes.householdId, householdId))
     .orderBy(desc(recipes.updatedAt));
 }
 
 export async function getRecipe(id: string) {
-  const userId = await requireUserId();
+  const { householdId } = await requireHousehold();
 
   const [recipe] = await db
     .select()
     .from(recipes)
-    .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+    .where(and(eq(recipes.id, id), eq(recipes.householdId, householdId)))
     .limit(1);
 
   if (!recipe) return null;
@@ -46,7 +46,7 @@ const saveInputSchema = recipeDraftSchema.extend({
 export async function saveRecipe(
   input: z.infer<typeof saveInputSchema>,
 ) {
-  const userId = await requireUserId();
+  const { userId, householdId } = await requireHousehold();
 
   const data = saveInputSchema.parse(input);
   const normalized = normalizeDraft(data);
@@ -66,7 +66,7 @@ export async function saveRecipe(
         updatedAt: new Date(),
       })
       .where(
-        and(eq(recipes.id, data.id), eq(recipes.userId, userId)),
+        and(eq(recipes.id, data.id), eq(recipes.householdId, householdId)),
       )
       .returning();
 
@@ -80,6 +80,7 @@ export async function saveRecipe(
     .insert(recipes)
     .values({
       userId,
+      householdId,
       title: normalized.title,
       ingredients: normalized.ingredients,
       steps: normalized.steps,
@@ -104,11 +105,11 @@ export async function saveRecipe(
 }
 
 export async function deleteRecipe(id: string) {
-  const userId = await requireUserId();
+  const { householdId } = await requireHousehold();
 
   const [del] = await db
     .delete(recipes)
-    .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+    .where(and(eq(recipes.id, id), eq(recipes.householdId, householdId)))
     .returning();
 
   if (!del) throw new Error("Not found");

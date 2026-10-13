@@ -7,7 +7,7 @@ import { signOutAction } from "@/actions/auth";
 const navLinkClass =
   "flex min-h-[44px] items-center rounded-md px-3 py-2.5 text-sm text-ink-muted hover:bg-stone-100 hover:text-accent active:bg-stone-200 md:min-h-0 md:px-0 md:py-0 md:hover:bg-transparent md:active:bg-transparent";
 
-export function AppNav() {
+export function AppNav({ householdName }: { householdName: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function AppNav() {
           className="font-display flex min-h-[44px] min-w-0 shrink items-center text-lg font-semibold leading-tight tracking-tight text-ink md:text-xl"
           onClick={() => setMenuOpen(false)}
         >
-          Ben&apos;s Cookbook
+          <span className="truncate">{householdName}</span>
         </Link>
 
         <button
@@ -83,6 +83,9 @@ export function AppNav() {
           <Link href="/import/photo" className="hover:text-accent">
             From photo
           </Link>
+          <Link href="/settings/household" className="hover:text-accent">
+            Household
+          </Link>
           <Link href="/settings/export" className="hover:text-accent">
             Export
           </Link>
@@ -116,6 +119,9 @@ export function AppNav() {
           </Link>
           <Link href="/import/photo" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Import from photo
+          </Link>
+          <Link href="/settings/household" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+            Household
           </Link>
           <Link href="/settings/export" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Export

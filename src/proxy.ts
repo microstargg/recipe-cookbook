@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth/server";
 
 /**
@@ -9,6 +9,8 @@ import { auth } from "@/lib/auth/server";
 const runAuth = auth.middleware({ loginUrl: "/auth/sign-in" });
 
 export async function proxy(request: NextRequest) {
+  // Invite links must open while signed out; the page itself sends people to sign up and back.
+  if (request.nextUrl.pathname.startsWith("/invite/")) return NextResponse.next();
   return runAuth(request);
 }
 

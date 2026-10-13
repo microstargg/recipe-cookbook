@@ -1,5 +1,6 @@
-import { auth } from "@/lib/auth/server";
 import { hasBlobToken, putPrivateBlob } from "@/lib/blob-storage";
+import { getSessionUser, requireHousehold } from "@/lib/household";
+import { householdBlobPath } from "@/lib/household-media";
 
 export const runtime = "nodejs";
 
@@ -19,12 +20,10 @@ function isUploadable(
 
 export async function POST(request: Request) {
   try {
-    const { data: session } = await auth.getSession({
-      headers: request.headers,
-    } as Parameters<typeof auth.getSession>[0]);
-    if (!session?.user?.id) {
+    if (!(await getSessionUser())) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { householdId } = await requireHousehold();
 
     if (!hasBlobToken()) {
       return Response.json(
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
 
     // Buffer is more reliable than passing the FormData Blob into @vercel/blob.
     const buf = Buffer.from(await file.arrayBuffer());
-    const blob = await putPrivateBlob(`photo-import/${safeName}`, buf, {
+    const blob = await putPrivateBlob(householdBlobPath(householdId, `photo-import/${safeName}`), buf, {
       contentType,
       addRandomSuffix: true,
     });

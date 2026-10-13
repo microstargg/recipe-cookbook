@@ -1,4 +1,5 @@
 import { hasBlobToken, putPrivateBlob } from "@/lib/blob-storage";
+import { householdBlobPath } from "@/lib/household-media";
 
 /**
  * If `BLOB_READ_WRITE_TOKEN` is set, download the image and store on Vercel Blob
@@ -7,6 +8,7 @@ import { hasBlobToken, putPrivateBlob } from "@/lib/blob-storage";
 export async function rehostRecipeImageIfConfigured(
   sourceUrl: string,
   filenameBase: string,
+  householdId: string | null,
 ): Promise<string> {
   if (!hasBlobToken()) return sourceUrl;
 
@@ -38,10 +40,14 @@ export async function rehostRecipeImageIfConfigured(
 
     const safe = filenameBase.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 48) || "recipe";
 
-    const blob = await putPrivateBlob(`url-import/${safe}-${Date.now()}.${ext}`, buf, {
-      contentType: ct,
-      addRandomSuffix: true,
-    });
+    const blob = await putPrivateBlob(
+      householdBlobPath(householdId, `url-import/${safe}-${Date.now()}.${ext}`),
+      buf,
+      {
+        contentType: ct,
+        addRandomSuffix: true,
+      },
+    );
     return blob.url;
   } catch {
     return sourceUrl;

@@ -10,7 +10,8 @@
  */
 
 import { db } from "../src/db";
-import { recipeImages, recipes } from "../src/db/schema";
+import { householdMembers, recipeImages, recipes } from "../src/db/schema";
+import { eq } from "drizzle-orm";
 import { fetchAndParseUrl } from "../src/lib/import-url";
 import { recipeDraftSchema } from "../src/lib/recipe-schema";
 import { rehostRecipeImageIfConfigured } from "../src/lib/rehost-recipe-image";
@@ -34,6 +35,14 @@ async function main() {
     process.exit(1);
   }
 
+  // Null if the user hasn't opened the app since households were added; the app adopts it on first visit.
+  const [membership] = await db
+    .select({ householdId: householdMembers.householdId })
+    .from(householdMembers)
+    .where(eq(householdMembers.userId, userId))
+    .limit(1);
+  const householdId = membership?.householdId ?? null;
+
   const { parsed } = await fetchAndParseUrl(url);
   if (!parsed.ingredients.length && !parsed.steps.length) {
     console.error("No recipe content extracted from:", url);
@@ -42,7 +51,7 @@ async function main() {
 
   let imageUrl = parsed.coverImageUrl ?? undefined;
   if (imageUrl) {
-    imageUrl = await rehostRecipeImageIfConfigured(imageUrl, parsed.title);
+    imageUrl = await rehostRecipeImageIfConfigured(imageUrl, parsed.title, householdId);
   }
 
   const draft = recipeDraftSchema.parse({
@@ -63,6 +72,7 @@ async function main() {
     .insert(recipes)
     .values({
       userId,
+      householdId,
       title: draft.title,
       ingredients: draft.ingredients,
       steps: draft.steps,

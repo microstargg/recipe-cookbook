@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUserId } from "@/lib/require-user";
+import { requireHousehold } from "@/lib/household";
 import {
   hasLlmApiKey,
   structureRecipeFromPlainText,
@@ -33,7 +34,8 @@ async function finalizeImportedDraft(
 ): Promise<RecipeDraft> {
   let imageUrl = parsed.coverImageUrl ?? undefined;
   if (imageUrl) {
-    imageUrl = await rehostRecipeImageIfConfigured(imageUrl, fields.title);
+    const { householdId } = await requireHousehold();
+    imageUrl = await rehostRecipeImageIfConfigured(imageUrl, fields.title, householdId);
   }
   return recipeDraftSchema.parse({
     ...fields,
