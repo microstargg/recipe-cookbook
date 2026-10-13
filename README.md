@@ -1,6 +1,6 @@
 # Ben's Cookbook
 
-Personal recipe app: manual recipes, URL import (JSON-LD + fallbacks), AI photo import, export. **Neon** (DB + Auth), **Vercel Blob** (images), **Google Gemini** via the **Vercel AI SDK** (`@ai-sdk/google`) for text/vision.
+Personal recipe app: manual recipes, URL import (JSON-LD + fallbacks), AI photo import, export, weekly meal planning (leftovers, freezer batches, quick breakfasts) and a shopping list sorted by aisle. A household can share everything via invite links. **Neon** (DB + Auth), **Vercel Blob** (images), **Google Gemini** via the **Vercel AI SDK** (`@ai-sdk/google`) for text/vision.
 
 ## Environment variables
 
@@ -21,7 +21,7 @@ You do **not** need Together.ai or OpenAI keys for the default setup.
 
 1. Copy `.env.example` to `.env.local` and fill the variables above.
 
-2. Push DB schema: `npm run db:push`
+2. Push DB schema: `npm run db:push` (or run `scripts/neon-schema.sql` in the Neon SQL editor; it is additive and safe to re-run).
 
 3. Sign up via Neon Auth at `/auth/sign-in` (or `/auth/sign-up`).
 
@@ -30,6 +30,13 @@ You do **not** need Together.ai or OpenAI keys for the default setup.
 ## Deploy (Vercel)
 
 Set the same env vars in the Vercel project. Enable **Blob** and attach the token. Photo/URL AI calls go to **Google Gemini** with your `GOOGLE_GENERATIVE_AI_API_KEY`.
+
+## Households, plans and shopping
+
+- Every user belongs to one **household**; recipes, meal plans, the freezer and shopping lists belong to the household. The first visit after upgrading creates a household for you and moves your existing recipes into it.
+- **Settings → Household** creates a single-use invite link (7 days). The person signs up or signs in from the link and joins with full access; any recipes they already had move across.
+- **Plan** (`/plan`): Monday–Sunday, breakfast/lunch/dinner. Planning a recipe can add "extra for tomorrow's lunch" (linked leftovers) and "extra to freeze" (goes on `/freezer`).
+- **Shop** (`/shopping`): built from the week's plan, scaled to portions, merged across recipes and grouped by aisle in Lidl / Morrisons / M&S walking order. Unknown items are sorted by Gemini once and cached; moving an item to another aisle is remembered per household.
 
 ## Notes
 

@@ -88,6 +88,14 @@ export function WeekPlanner({ plan }: { plan: WeekPlan }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
+        {thisWeek.length > 0 && (
+          <Link
+            href={`/shopping?week=${plan.weekStart}`}
+            className="inline-flex min-h-[40px] items-center rounded-full bg-sage px-4 text-sm font-medium text-white"
+          >
+            Shopping list
+          </Link>
+        )}
         <Link
           href="/freezer"
           className="inline-flex min-h-[40px] items-center rounded-full border border-stone-300 bg-white px-4 text-sm text-ink"
