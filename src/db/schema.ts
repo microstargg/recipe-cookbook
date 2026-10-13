@@ -7,6 +7,8 @@ import {
   index,
   integer,
   uniqueIndex,
+  date,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import type { RecipeIngredient } from "@/lib/recipe-schema";
@@ -18,6 +20,8 @@ import type { RecipeIngredient } from "@/lib/recipe-schema";
 export const households = pgTable("households", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
+  /** How many people usually eat a meal; pre-fills portions when planning. */
+  defaultPortions: integer("default_portions").notNull().default(2),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -123,6 +127,99 @@ export const recipeImagesRelations = relations(recipeImages, ({ one }) => ({
   recipe: one(recipes, { fields: [recipeImages.recipeId], references: [recipes.id] }),
 }));
 
+export type MealSlot = "breakfast" | "lunch" | "dinner";
+export type PlanEntryKind = "cook" | "leftovers" | "freezer" | "simple";
+
+/**
+ * One meal in the weekly plan. What it means depends on `kind`:
+ * - cook: make `recipe_id`; total made = portions + linked leftovers + freeze_portions
+ * - leftovers: eat portions of the cook entry `leftover_of_entry_id`
+ * - freezer: eat portions from `freezer_item_id`
+ * - simple: free-text meal (`title`), optional `ingredients` go on the shopping list as-is
+ */
+export const planEntries = pgTable(
+  "plan_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    date: date("date", { mode: "string" }).notNull(),
+    slot: text("slot").$type<MealSlot>().notNull(),
+    kind: text("kind").$type<PlanEntryKind>().notNull(),
+    /** Snapshot for display; for `simple` entries this is the meal itself. */
+    title: text("title").notNull(),
+    recipeId: uuid("recipe_id").references(() => recipes.id, { onDelete: "set null" }),
+    /** Portions eaten at this meal. */
+    portions: integer("portions").notNull(),
+    /** cook only: extra portions made to go in the freezer. */
+    freezePortions: integer("freeze_portions").notNull().default(0),
+    leftoverOfEntryId: uuid("leftover_of_entry_id").references(
+      (): AnyPgColumn => planEntries.id,
+      { onDelete: "cascade" },
+    ),
+    freezerItemId: uuid("freezer_item_id").references(
+      (): AnyPgColumn => freezerItems.id,
+      { onDelete: "set null" },
+    ),
+    ingredients: jsonb("ingredients").$type<RecipeIngredient[]>().notNull().default([]),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("plan_entries_household_date_idx").on(t.householdId, t.date)],
+);
+
+/**
+ * Portions in the freezer. `portions` is how many went in; what's left is that minus
+ * the freezer entries that use it. Items from batch cooking link back to their cook entry.
+ */
+export const freezerItems = pgTable(
+  "freezer_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    recipeId: uuid("recipe_id").references(() => recipes.id, { onDelete: "set null" }),
+    portions: integer("portions").notNull(),
+    frozenOn: date("frozen_on", { mode: "string" }).notNull(),
+    sourceEntryId: uuid("source_entry_id").references((): AnyPgColumn => planEntries.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("freezer_items_household_idx").on(t.householdId),
+    uniqueIndex("freezer_items_source_entry_uidx").on(t.sourceEntryId),
+  ],
+);
+
+/** Saved go-to meals that aren't full recipes (e.g. "Overnight oats"). */
+export const quickMeals = pgTable(
+  "quick_meals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    slot: text("slot").$type<MealSlot>().notNull().default("breakfast"),
+    ingredients: jsonb("ingredients").$type<RecipeIngredient[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("quick_meals_household_idx").on(t.householdId)],
+);
+
+export type PlanEntry = typeof planEntries.$inferSelect;
+export type FreezerItem = typeof freezerItems.$inferSelect;
+export type QuickMeal = typeof quickMeals.$inferSelect;
 export type Household = typeof households.$inferSelect;
 export type HouseholdMember = typeof householdMembers.$inferSelect;
 export type HouseholdInvite = typeof householdInvites.$inferSelect;

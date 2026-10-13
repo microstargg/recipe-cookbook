@@ -9,6 +9,8 @@ import {
   renameHousehold,
   revokeInvite,
 } from "@/actions/household";
+import { setDefaultPortions } from "@/actions/plan";
+import { Stepper } from "@/components/ui/stepper";
 
 type Member = {
   id: string;
@@ -31,6 +33,7 @@ function inviteUrl(token: string): string {
 
 export function HouseholdSettings(props: {
   householdName: string;
+  defaultPortions: number;
   role: "owner" | "member";
   currentUserId: string;
   members: Member[];
@@ -107,6 +110,18 @@ export function HouseholdSettings(props: {
             Save name
           </button>
         </form>
+      </section>
+
+      <section>
+        <h2 className="font-display text-lg font-semibold text-ink">Meal planning</h2>
+        <Stepper
+          label="Portions per meal"
+          hint="Pre-filled when you add a meal to the plan"
+          value={props.defaultPortions}
+          min={1}
+          max={20}
+          onChange={(n) => run(() => setDefaultPortions(n))}
+        />
       </section>
 
       <section>

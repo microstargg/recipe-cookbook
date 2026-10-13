@@ -5,7 +5,15 @@ import { and, asc, count, eq, gt, isNull, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { householdInvites, householdMembers, households, recipes } from "@/db/schema";
+import {
+  freezerItems,
+  householdInvites,
+  householdMembers,
+  households,
+  planEntries,
+  quickMeals,
+  recipes,
+} from "@/db/schema";
 import { getSessionUser, requireHousehold } from "@/lib/household";
 
 const INVITE_TTL_DAYS = 7;
@@ -42,7 +50,12 @@ export async function getHouseholdOverview() {
     )
     .orderBy(asc(householdInvites.createdAt));
 
-  return { ...ctx, members, invites };
+  const [{ defaultPortions }] = await db
+    .select({ defaultPortions: households.defaultPortions })
+    .from(households)
+    .where(eq(households.id, ctx.householdId));
+
+  return { ...ctx, defaultPortions, members, invites };
 }
 
 export async function renameHousehold(name: string) {
@@ -187,7 +200,7 @@ export async function getInvitePreview(token: string): Promise<InvitePreview> {
 
 /**
  * Join the inviting household. The joiner's own (solo) cookbook is merged in:
- * their recipes move across and the empty household is deleted, all in one transaction.
+ * their recipes, plans, freezer and quick meals move across and the empty household is deleted, all in one transaction.
  */
 export async function acceptInvite(token: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getSessionUser();
@@ -220,6 +233,18 @@ export async function acceptInvite(token: string): Promise<{ ok: true } | { ok: 
       .update(recipes)
       .set({ householdId: invite.householdId })
       .where(eq(recipes.householdId, current.householdId)),
+    db
+      .update(planEntries)
+      .set({ householdId: invite.householdId })
+      .where(eq(planEntries.householdId, current.householdId)),
+    db
+      .update(freezerItems)
+      .set({ householdId: invite.householdId })
+      .where(eq(freezerItems.householdId, current.householdId)),
+    db
+      .update(quickMeals)
+      .set({ householdId: invite.householdId })
+      .where(eq(quickMeals.householdId, current.householdId)),
     db.delete(householdMembers).where(eq(householdMembers.userId, user.id)),
     db.insert(householdMembers).values({
       householdId: invite.householdId,

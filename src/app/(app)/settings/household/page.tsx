@@ -12,6 +12,7 @@ export default async function HouseholdPage() {
       </p>
       <HouseholdSettings
         householdName={overview.householdName}
+        defaultPortions={overview.defaultPortions}
         role={overview.role}
         currentUserId={overview.userId}
         members={overview.members.map((m) => ({
