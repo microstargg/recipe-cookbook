@@ -2,6 +2,12 @@ import { createNeonAuth } from "@neondatabase/auth/next/server";
 
 const BUILD_TIME_COOKIE_PLACEHOLDER = "0123456789abcdef0123456789abcdef";
 
+/**
+ * How long a session check is trusted before asking Neon Auth again (the library default is
+ * 5 minutes). Signing out clears it at once; a member removed elsewhere is noticed within this.
+ */
+export const SESSION_CACHE_TTL_SECONDS = 60 * 60;
+
 function neonAuthCookieSecret(): string {
   const s = process.env.NEON_AUTH_COOKIE_SECRET?.trim();
   if (s && s.length >= 32) return s;
@@ -26,9 +32,13 @@ function neonAuthCookieSecret(): string {
   return BUILD_TIME_COOKIE_PLACEHOLDER;
 }
 
+export const NEON_AUTH_BASE_URL = process.env.NEON_AUTH_BASE_URL!;
+export const NEON_AUTH_COOKIE_SECRET = neonAuthCookieSecret();
+
 export const auth = createNeonAuth({
-  baseUrl: process.env.NEON_AUTH_BASE_URL!,
+  baseUrl: NEON_AUTH_BASE_URL,
   cookies: {
-    secret: neonAuthCookieSecret(),
+    secret: NEON_AUTH_COOKIE_SECRET,
+    sessionDataTtl: SESSION_CACHE_TTL_SECONDS,
   },
 });
