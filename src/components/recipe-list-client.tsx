@@ -87,6 +87,8 @@ export function RecipeListClient({ recipes }: { recipes: RecipeListItem[] }) {
                   <img
                     src={r.thumbUrl}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="h-14 w-14 shrink-0 rounded object-cover sm:h-16 sm:w-16"
                   />
                 )}
