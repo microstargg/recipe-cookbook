@@ -673,6 +673,28 @@ function buildImportFetchHeaders(pageUrl: string): Record<string, string> {
   };
 }
 
+/** Thrown when the site (or the read proxy) only returns a bot-check page instead of the article. */
+export class SiteBlockedImportError extends Error {
+  constructor() {
+    super(
+      "This website blocks automatic imports with a bot check, so the recipe can't be fetched. Open the page in your browser, copy the recipe, and paste it below instead.",
+    );
+    this.name = "SiteBlockedImportError";
+  }
+}
+
+/** Cloudflare / similar interstitials ("Just a moment…") that need a real browser with JavaScript. */
+export function isBotChallengeHtml(html: string): boolean {
+  const head = html.slice(0, 20_000);
+  if (/cf_chl_|challenges\.cloudflare\.com\/cdn-cgi\/challenge-platform/i.test(head)) {
+    return true;
+  }
+  return (
+    /<title>\s*(Just a moment|Attention Required|Please wait)/i.test(head) &&
+    /Enable JavaScript and cookies/i.test(head)
+  );
+}
+
 /**
  * Some recipe sites (e.g. Allrecipes) return 403 to cloud/server IPs. Optional fallback uses
  * Jina Reader (`https://r.jina.ai/…`) with `X-Return-Format: html` so we still get HTML for
@@ -689,25 +711,27 @@ async function fetchImportHtml(
     redirect: "follow",
   });
 
-  if (res.ok) {
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength > MAX_BYTES) {
-      throw new Error("Page is too large to import (max 2MB).");
-    }
-    return {
-      html: new TextDecoder("utf-8").decode(buf),
-      fetchWarnings,
-    };
+  const buf = await res.arrayBuffer();
+  if (buf.byteLength > MAX_BYTES) {
+    throw new Error("Page is too large to import (max 2MB).");
+  }
+  const directHtml = new TextDecoder("utf-8").decode(buf);
+  const directBlocked = isBotChallengeHtml(directHtml);
+
+  if (res.ok && !directBlocked) {
+    return { html: directHtml, fetchWarnings };
   }
 
   const tryProxy =
     !importJinaDisabled() &&
-    (res.status === 403 ||
+    (directBlocked ||
+      res.status === 403 ||
       res.status === 401 ||
       res.status === 503 ||
       res.status === 429);
 
   if (!tryProxy) {
+    if (directBlocked) throw new SiteBlockedImportError();
     throw new Error(`HTTP ${res.status} when fetching the URL`);
   }
 
@@ -723,24 +747,26 @@ async function fetchImportHtml(
   });
 
   if (!jina.ok) {
+    if (directBlocked) throw new SiteBlockedImportError();
     throw new Error(
       `HTTP ${res.status} when fetching the URL (read proxy failed: HTTP ${jina.status})`,
     );
   }
 
-  const buf = await jina.arrayBuffer();
-  if (buf.byteLength > MAX_BYTES) {
+  const jinaBuf = await jina.arrayBuffer();
+  if (jinaBuf.byteLength > MAX_BYTES) {
     throw new Error("Page is too large to import (max 2MB).");
+  }
+  const jinaHtml = new TextDecoder("utf-8").decode(jinaBuf);
+  if (isBotChallengeHtml(jinaHtml)) {
+    throw new SiteBlockedImportError();
   }
 
   fetchWarnings.push(
     "Fetched via read proxy because the site blocked direct access from this server. The page URL was retrieved through a third-party HTML reader.",
   );
 
-  return {
-    html: new TextDecoder("utf-8").decode(buf),
-    fetchWarnings,
-  };
+  return { html: jinaHtml, fetchWarnings };
 }
 
 function withFetchWarnings(

@@ -6,7 +6,11 @@ import {
   hasLlmApiKey,
   structureRecipeFromPlainText,
 } from "@/lib/llm-recipe-fallback";
-import { fetchAndParseUrl, type ParsedRecipe } from "@/lib/import-url";
+import {
+  fetchAndParseUrl,
+  SiteBlockedImportError,
+  type ParsedRecipe,
+} from "@/lib/import-url";
 import {
   fetchInstagramRecipeSource,
   isInstagramUrl,
@@ -130,9 +134,68 @@ function buildArticleScrapeBody(parsed: ParsedRecipe): string {
   return chunks.join("\n");
 }
 
-export async function importRecipeFromUrl(
-  url: string,
-): Promise<{ ok: true; draft: RecipeDraft } | { ok: false; error: string }> {
+export type ImportResult =
+  | { ok: true; draft: RecipeDraft }
+  | { ok: false; error: string; blocked?: boolean };
+
+/**
+ * Fallback for sites that block server-side fetching: the user copies the recipe text
+ * from their own browser and we structure it with AI.
+ */
+export async function importRecipeFromPastedText(
+  text: string,
+  sourceUrl?: string,
+): Promise<ImportResult> {
+  try {
+    await requireUserId();
+    const body = text.trim();
+    if (body.length < 40) {
+      return { ok: false, error: "Paste the full recipe (ingredients and method)." };
+    }
+    if (!hasLlmApiKey()) {
+      return {
+        ok: false,
+        error:
+          "Pasting recipe text needs GOOGLE_GENERATIVE_AI_API_KEY. Try importing a screenshot instead.",
+      };
+    }
+
+    let source: URL | null = null;
+    if (sourceUrl?.trim()) {
+      try {
+        const u = new URL(sourceUrl.trim());
+        if (u.protocol === "http:" || u.protocol === "https:") source = u;
+      } catch {
+        /* ignore an invalid source URL */
+      }
+    }
+
+    const ai = await structureRecipeFromPlainText(body, { context: "article-scrape" });
+    if (!ai?.ingredients.length || !ai.steps.length) {
+      return {
+        ok: false,
+        error: "Couldn't find ingredients and steps in that text. Try copying just the recipe card.",
+      };
+    }
+
+    const draft = recipeDraftSchema.parse({
+      title: ai.title,
+      ingredients: ai.ingredients,
+      steps: ai.steps,
+      tags: ai.tags ?? [],
+      servings: ai.servings ?? null,
+      servingsLabel: ai.servingsLabel ?? null,
+      sourceUrl: source?.toString(),
+      notes:
+        "Recipe was structured with AI from pasted text; verify ingredients and steps before cooking.",
+    });
+    return { ok: true, draft };
+  } catch (err) {
+    return { ok: false, error: friendlyImportError(err) };
+  }
+}
+
+export async function importRecipeFromUrl(url: string): Promise<ImportResult> {
   try {
     await requireUserId();
 
@@ -154,6 +217,9 @@ export async function importRecipeFromUrl(
     const draft = await importRecipeFromWebPage(u);
     return { ok: true, draft };
   } catch (err) {
+    if (err instanceof SiteBlockedImportError) {
+      return { ok: false, error: err.message, blocked: true };
+    }
     return { ok: false, error: friendlyImportError(err) };
   }
 }
